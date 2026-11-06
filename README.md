@@ -5,6 +5,18 @@
 
 ---
 
+## Netlify deployment
+
+The Netlify application runs on Node.js through `netlify/functions/app.mts`. `netlify.toml` publishes only `public/` and routes application requests to that function. No frontend build command or Flask server is required. Shared templates are rendered with Nunjucks, and browser assets live in `public/static/` (also used by local Flask).
+
+Complaint records, status history, assignments, duplicate links, notifications and opaque browser sessions use Netlify Database with Drizzle. Deploys apply the checked-in migrations in `netlify/database/migrations/` automatically, including the standard civic departments. Uploaded complaint and completion photos use the persistent `complaint-images` Netlify Blobs store. Images are limited to 4 MB to fit function request limits. A new database starts empty; existing local SQLite records and photos are not imported automatically. Officer assignment becomes available when officer records are populated.
+
+Admin routes retain HTTP Basic authentication. Set `CIVICAI_ADMIN_PASSWORD` in the Netlify environment; the default authentication mode is `password`. `CIVICAI_ADMIN_AUTH_MODE=disabled` disables administration, and `open` is only for development. Missing credentials leave admin routes inaccessible. Citizen pages do not require an admin password. Browser sessions and CSRF protection use database records and do not need a shared signing secret.
+
+The Node analysis uses the existing category keyword lexicon and priority scoring rules, plus text similarity for duplicate candidates, 500-metre geographic clusters, department suggestions, description feedback, action briefs and count-based insights. Classification confidence and similarity are heuristic review aids and can differ from the original Python TF-IDF implementation. No external AI service is required.
+
+Run `npm ci`, `npm test`, and `npm run typecheck` for the Netlify implementation. Route tests use a mocked database boundary; they do not apply migrations or connect to the deployed database. Netlify validates the function bundle and applies migrations during deployment. For local Netlify development use `netlify dev --port 8889`. The Python implementation and its tests remain available for local development via the instructions below.
+
 ## Problem Statement
 
 Cities generate thousands of citizen complaints every day: potholes, waterlogging, broken streetlights, garbage overflow, drainage failures, and public safety hazards. These complaints are often:
@@ -81,7 +93,7 @@ civicai/
 │   └── action_brief.py     LLM-generated officer action briefs
 │
 ├── templates/              Jinja2 HTML templates (Phase 2)
-├── static/
+├── public/static/
 │   ├── css/                Stylesheets (Phase 2)
 │   ├── js/                 JavaScript (Phase 2)
 │   └── images/             Static image assets

@@ -151,7 +151,7 @@
 
       // Render Complaint Markers
       complaints.forEach(function (c) {
-        if (!c.latitude || !c.longitude || isNaN(c.latitude) || isNaN(c.longitude)) return;
+        if (c.latitude == null || c.longitude == null || isNaN(c.latitude) || isNaN(c.longitude)) return;
 
         var color = "#3498db"; // default blue
         if (c.priority_level === "Critical") color = "#e74c3c";
