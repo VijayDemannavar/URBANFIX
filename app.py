@@ -16,7 +16,7 @@ import database as db
 from config import (
     SECRET_KEY, DEBUG, HOST, PORT,
     UPLOAD_DIR, BASE_DIR,
-    ADMIN_AUTH_MODE, ADMIN_PASSWORD,
+    ADMIN_AUTH_MODE, ADMIN_PASSWORD, ADMIN_USERNAME,
 )
 from routes.submit import submit_bp
 from routes.admin  import admin_bp
@@ -41,7 +41,7 @@ def _validate_admin_auth_config(auth_mode: str, admin_password: str) -> None:
     This function is called before the app starts accepting requests so that
     misconfigurations surface immediately rather than silently falling through.
     """
-    valid_modes = {"open", "password", "disabled"}
+    valid_modes = {"open", "password", "disabled", "session"}
     if auth_mode not in valid_modes:
         raise RuntimeError(
             f"Invalid CIVICAI_ADMIN_AUTH_MODE '{auth_mode}'. "
@@ -57,6 +57,7 @@ def _validate_admin_auth_config(auth_mode: str, admin_password: str) -> None:
 def create_app(
     admin_auth_mode: str | None = None,
     admin_password:  str | None = None,
+    admin_username:  str | None = None,
 ) -> Flask:
     """
     Create and configure the Flask application.
@@ -67,10 +68,13 @@ def create_app(
         Override ``config.ADMIN_AUTH_MODE`` (useful in tests).
     admin_password:
         Override ``config.ADMIN_PASSWORD`` (useful in tests).
+    admin_username:
+        Override ``config.ADMIN_USERNAME`` (useful in tests).
     """
     # Resolve effective auth settings (caller overrides > env/config defaults)
     effective_mode     = admin_auth_mode if admin_auth_mode is not None else ADMIN_AUTH_MODE
     effective_password = admin_password  if admin_password  is not None else ADMIN_PASSWORD
+    effective_username = admin_username  if admin_username  is not None else ADMIN_USERNAME
 
     app = Flask(
         __name__,
@@ -82,6 +86,7 @@ def create_app(
     # Persist auth settings so the blueprint can read them at request time
     app.config["ADMIN_AUTH_MODE"] = effective_mode
     app.config["ADMIN_PASSWORD"]  = effective_password
+    app.config["ADMIN_USERNAME"]  = effective_username
 
     # ── CSRF: lightweight token via session ───────────────────────────
     # Full WTForms CSRF is Phase 3+. We inject a simple session token here

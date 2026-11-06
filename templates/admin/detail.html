@@ -163,6 +163,12 @@
       </div>
       {% endif %}
 
+      {% if session.get('is_demo') %}
+      <div class="alert alert-warning" style="margin-bottom:1.25rem;">
+        <strong>🔒 Demo Mode (Read-Only):</strong> Modifying complaint status, updating assignments, uploading completion photos, and adding action notes are disabled for demo accounts.
+      </div>
+      {% endif %}
+
       <!-- ── Update Status form ─────────────────────────────────────── -->
       <div class="card" style="margin-bottom:1.25rem;">
         <h2 class="card-title">✏️ Update Status</h2>
@@ -172,7 +178,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
             <div>
               <label for="new_status" style="font-size:.82rem;">New Status</label>
-              <select id="new_status" name="new_status" style="font-size:.88rem;">
+              <select id="new_status" name="new_status" style="font-size:.88rem;" {% if session.get('is_demo') %}disabled{% endif %}>
                 <option value="">— No change —</option>
                 {% for st in statuses %}
                   <option value="{{ st }}"
@@ -186,20 +192,20 @@
               <label for="action_note_status" style="font-size:.82rem;">Note (optional)</label>
               <input type="text" id="action_note_status" name="action_note"
                      placeholder="Reason for status change"
-                     maxlength="300" style="font-size:.88rem;">
+                     maxlength="300" style="font-size:.88rem;" {% if session.get('is_demo') %}disabled{% endif %}>
             </div>
           </div>
           <!-- Resolution Message -->
           <div style="margin-bottom:.75rem;">
             <label for="resolution_message" style="font-size:.82rem;">Resolution Message (optional)</label>
-            <textarea id="resolution_message" name="resolution_message" rows="3" style="font-size:.88rem;width:100%;"></textarea>
+            <textarea id="resolution_message" name="resolution_message" rows="3" style="font-size:.88rem;width:100%;" {% if session.get('is_demo') %}disabled{% endif %}></textarea>
           </div>
           <!-- Completion Photo -->
           <div style="margin-bottom:.75rem;">
             <label for="resolution_image" style="font-size:.82rem;">Completion Photo (optional)</label>
-            <input type="file" id="resolution_image" name="resolution_image" accept="image/*">
+            <input type="file" id="resolution_image" name="resolution_image" accept="image/*" {% if session.get('is_demo') %}disabled{% endif %}>
           </div>
-          <button type="submit" class="btn btn-primary" style="font-size:.85rem;padding:.4rem 1rem;">
+          <button type="submit" class="btn btn-primary" style="font-size:.85rem;padding:.4rem 1rem;" {% if session.get('is_demo') %}disabled title="Disabled in demo mode"{% endif %}>
             Update Status
           </button>
         </form>
@@ -214,7 +220,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
             <div>
               <label for="department_id" style="font-size:.82rem;">Department</label>
-              <select id="department_id" name="department_id" style="font-size:.88rem;">
+              <select id="department_id" name="department_id" style="font-size:.88rem;" {% if session.get('is_demo') %}disabled{% endif %}>
                 <option value="0">— Unassigned —</option>
                 {% for dept in departments %}
                   <option value="{{ dept.id }}"
@@ -226,7 +232,7 @@
             </div>
             <div>
               <label for="officer_id" style="font-size:.82rem;">Officer</label>
-              <select id="officer_id" name="officer_id" style="font-size:.88rem;">
+              <select id="officer_id" name="officer_id" style="font-size:.88rem;" {% if session.get('is_demo') %}disabled{% endif %}>
                 <option value="0">— Unassigned —</option>
                 {% for off in all_officers %}
                   <option value="{{ off.id }}"
@@ -237,7 +243,7 @@
               </select>
             </div>
           </div>
-          <button type="submit" class="btn btn-primary" style="font-size:.85rem;padding:.4rem 1rem;">
+          <button type="submit" class="btn btn-primary" style="font-size:.85rem;padding:.4rem 1rem;" {% if session.get('is_demo') %}disabled title="Disabled in demo mode"{% endif %}>
             Save Assignment
           </button>
         </form>
@@ -327,6 +333,9 @@
       <div class="sidebar-card" style="margin-bottom:1.25rem;">
         <div class="sidebar-header">📝 Add Action Note</div>
         <div class="sidebar-body">
+          {% if session.get('is_demo') %}
+          <p class="text-muted text-sm" style="margin-bottom:.5rem;font-style:italic;">Note submission disabled in demo mode.</p>
+          {% endif %}
           <form method="POST"
                 action="{{ url_for('admin.complaint_add_note', complaint_id=complaint.complaint_id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -334,10 +343,12 @@
               <textarea name="note" rows="3"
                         placeholder="Enter action note…"
                         maxlength="1000"
-                        style="font-size:.85rem;resize:vertical;min-height:70px;"></textarea>
+                        style="font-size:.85rem;resize:vertical;min-height:70px;"
+                        {% if session.get('is_demo') %}disabled{% endif %}></textarea>
             </div>
             <button type="submit" class="btn btn-primary"
-                    style="font-size:.82rem;padding:.35rem .85rem;">
+                    style="font-size:.82rem;padding:.35rem .85rem;"
+                    {% if session.get('is_demo') %}disabled title="Disabled in demo mode"{% endif %}>
               Add Note
             </button>
           </form>
@@ -446,7 +457,7 @@
 {% block extra_scripts %}
   {% if complaint.latitude and complaint.longitude %}
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN2GqaY="
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
           crossorigin="anonymous"></script>
   <script>
     (function () {

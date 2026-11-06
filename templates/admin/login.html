@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block title %}Admin Portal Login – URBANFIX{% endblock %}
+
+{% block extra_head %}
+<style>
+  .auth-wrapper {
+    max-width: 520px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    padding: 2.25rem 2rem;
+  }
+  .auth-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .65rem;
+    margin-bottom: .85rem;
+  }
+  .auth-brand svg {
+    width: 32px;
+    height: 32px;
+    fill: var(--brand-blue);
+  }
+  .auth-brand span {
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    color: var(--brand-navy);
+  }
+  .auth-heading {
+    text-align: center;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--brand-dark);
+    margin-bottom: .35rem;
+  }
+  .auth-subheading {
+    text-align: center;
+    font-size: .88rem;
+    color: var(--text-muted);
+    margin-bottom: 1.75rem;
+  }
+  .password-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .password-input-wrap input {
+    padding-right: 4.5rem;
+  }
+  .pwd-toggle-btn {
+    position: absolute;
+    right: .5rem;
+    background: transparent;
+    border: none;
+    color: var(--brand-blue);
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: .35rem .6rem;
+    border-radius: var(--radius-sm);
+  }
+  .pwd-toggle-btn:hover {
+    background: var(--brand-light);
+    text-decoration: none;
+  }
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 1.75rem 0;
+    color: var(--text-muted);
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .auth-divider::before,
+  .auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border);
+  }
+  .auth-divider::before { margin-right: .85rem; }
+  .auth-divider::after { margin-left: .85rem; }
+
+  .demo-box {
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: var(--radius-md);
+    padding: 1.35rem;
+    text-align: center;
+  }
+  .demo-badge {
+    display: inline-block;
+    background: #e0e7ff;
+    color: #3730a3;
+    font-size: .72rem;
+    font-weight: 700;
+    padding: .2rem .6rem;
+    border-radius: 999px;
+    margin-bottom: .6rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .demo-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--brand-dark);
+    margin-bottom: .4rem;
+  }
+  .demo-desc {
+    font-size: .84rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+    margin-bottom: 1rem;
+  }
+  .demo-btn {
+    width: 100%;
+    background: #0d9f6e;
+    color: #fff;
+    padding: .7rem 1.25rem;
+    font-size: .95rem;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(13, 159, 110, 0.2);
+    transition: background .15s, transform .1s;
+  }
+  .demo-btn:hover {
+    background: #0b865d;
+    color: #fff;
+    text-decoration: none;
+  }
+  .demo-btn:active {
+    transform: scale(.98);
+  }
+  .demo-bullets {
+    margin-top: .9rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .4rem;
+    text-align: left;
+    font-size: .76rem;
+    color: var(--text-muted);
+  }
+  .demo-bullets div {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="auth-wrapper">
+    <div class="auth-card">
+
+      <!-- Branding -->
+      <div class="auth-brand">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6a2 2 0 110 4 2 2 0 010-4z"/></svg>
+        <span>URBANFIX</span>
+      </div>
+      <h1 class="auth-heading">Admin Portal Login</h1>
+      <p class="auth-subheading">Sign in with municipal credentials or launch a one-click demo session.</p>
+
+      <!-- Admin Form -->
+      <form method="POST" action="{{ url_for('admin.login') }}" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if next_url %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+        {% endif %}
+
+        <div class="form-group">
+          <label for="username">Username <span class="req">*</span></label>
+          <input type="text"
+                 id="username"
+                 name="username"
+                 value="{{ username or '' }}"
+                 required
+                 autocomplete="username"
+                 placeholder="e.g. admin"
+                 autofocus>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password <span class="req">*</span></label>
+          <div class="password-input-wrap">
+            <input type="password"
+                   id="password"
+                   name="password"
+                   required
+                   autocomplete="current-password"
+                   placeholder="Enter admin password">
+            <button type="button"
+                    id="pwd-toggle"
+                    class="pwd-toggle-btn"
+                    onclick="togglePassword()"
+                    aria-label="Show password">
+              Show
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:.5rem;">
+          🔐 Sign In as Administrator
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div class="auth-divider">
+        <span>Or Explore Instantly</span>
+      </div>
+
+      <!-- One-Click Demo Section -->
+      <div class="demo-box">
+        <span class="demo-badge">One-Click Reviewer Access</span>
+        <h2 class="demo-title">Explore Demo Account</h2>
+        <p class="demo-desc">
+          Immediate, credential-free read-only access to live complaints, geospatial heatmaps, AI department triage, and analytics.
+        </p>
+
+        <form method="POST" action="{{ url_for('admin.demo_login') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="demo-btn" id="explore-demo-btn">
+            <span>🚀 Explore Demo</span>
+            <span style="font-size:.82rem;font-weight:400;opacity:.9;">(Read-Only)</span>
+          </button>
+        </form>
+
+        <div class="demo-bullets">
+          <div>🗺 Live Map &amp; Hotspots</div>
+          <div>🤖 AI Action Briefs</div>
+          <div>📊 Resolution Analytics</div>
+          <div>🔒 Read-Only Protected</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function togglePassword() {
+  const pwd = document.getElementById('password');
+  const btn = document.getElementById('pwd-toggle');
+  if (pwd.type === 'password') {
+    pwd.type = 'text';
+    btn.textContent = 'Hide';
+    btn.setAttribute('aria-label', 'Hide password');
+  } else {
+    pwd.type = 'password';
+    btn.textContent = 'Show';
+    btn.setAttribute('aria-label', 'Show password');
+  }
+}
+</script>
+{% endblock %}

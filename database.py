@@ -729,26 +729,31 @@ def get_platform_stats() -> dict:
     Return high-level civic platform summary statistics for the homepage.
     Always reflects real DB values, handles empty DB safely.
     """
-    with db_cursor() as (conn, cur):
-        cur.execute(
-            """SELECT
-                 COUNT(*) AS total,
-                 SUM(status IN ('Resolved', 'Closed')) AS resolved,
-                 SUM(status IN ('Submitted', 'Under Review')) AS pending,
-                 SUM(status IN ('Assigned', 'In Progress')) AS in_progress,
-                 COUNT(DISTINCT category) AS active_categories
-               FROM complaints;"""
-        )
-        row = cur.fetchone()
-        if not row:
-            return {"total": 0, "resolved": 0, "pending": 0, "in_progress": 0, "active_categories": 0}
-        return {
-            "total": row["total"] or 0,
-            "resolved": row["resolved"] or 0,
-            "pending": row["pending"] or 0,
-            "in_progress": row["in_progress"] or 0,
-            "active_categories": row["active_categories"] or 0,
-        }
+    default_stats = {"total": 0, "resolved": 0, "pending": 0, "in_progress": 0, "active_categories": 0}
+    try:
+        with db_cursor() as (conn, cur):
+            cur.execute(
+                """SELECT
+                     COUNT(*) AS total,
+                     SUM(status IN ('Resolved', 'Closed')) AS resolved,
+                     SUM(status IN ('Submitted', 'Under Review')) AS pending,
+                     SUM(status IN ('Assigned', 'In Progress')) AS in_progress,
+                     COUNT(DISTINCT category) AS active_categories
+                   FROM complaints;"""
+            )
+            row = cur.fetchone()
+            if not row:
+                return default_stats
+            return {
+                "total": row["total"] or 0,
+                "resolved": row["resolved"] or 0,
+                "pending": row["pending"] or 0,
+                "in_progress": row["in_progress"] or 0,
+                "active_categories": row["active_categories"] or 0,
+            }
+    except Exception as exc:
+        logger.error("Error computing platform stats: %s", exc)
+        return default_stats
 
 
 def get_analytics_metrics() -> dict:

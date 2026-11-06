@@ -13,3 +13,6 @@ python-dotenv==1.0.1
 # numpy       – TF-IDF vectors and cosine similarity for categoriser + duplicate detector
 # No sentence-transformers, no transformers, no paid APIs required.
 numpy>=1.24
+
+# Production WSGI Server
+gunicorn>=21.2.0

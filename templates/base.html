@@ -22,6 +22,14 @@
 </head>
 <body class="page-wrap">
 
+  <!-- ── Demo banner ──────────────────────────────────────────────── -->
+  {% if session.get('is_demo') %}
+  <aside class="demo-top-banner" style="background:linear-gradient(90deg, #b45309, #d97706);color:#ffffff;padding:.6rem 1.25rem;font-size:.86rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:.85rem;flex-wrap:wrap;box-shadow:0 2px 6px rgba(0,0,0,.15);z-index:999;position:relative;" aria-label="Demo notice">
+    <span>🔒 <strong>DEMO MODE &mdash; READ ONLY:</strong> You are exploring live URBANFIX data with demo permissions. Status changes, assignments, notes, and photo uploads are disabled.</span>
+    <a href="{{ url_for('admin.logout') }}" style="background:#ffffff;color:#b45309;padding:.25rem .75rem;border-radius:4px;font-size:.8rem;font-weight:700;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.1);">Exit Demo</a>
+  </aside>
+  {% endif %}
+
   <!-- ── Navigation ───────────────────────────────────────────────── -->
   <nav class="navbar" role="navigation" aria-label="Main navigation">
     <div class="navbar-inner">
@@ -71,6 +79,21 @@
            class="nav-link {% if request.endpoint == 'admin.action_brief' or request.endpoint == 'admin.action_brief_generate' %}active{% endif %}">
           🤖 Brief
         </a>
+        {% if session.get('is_demo') %}
+          <span class="nav-badge" style="background:#f59e0b;color:#1e293b;padding:.2rem .55rem;align-self:center;">DEMO</span>
+          <a href="{{ url_for('admin.logout') }}" class="nav-link" style="color:#ef4444;font-weight:600;" title="End demo session">
+            Exit Demo ↗
+          </a>
+        {% elif session.get('admin_logged_in') %}
+          <span class="nav-badge" style="background:#10b981;color:#ffffff;padding:.2rem .55rem;align-self:center;">Admin</span>
+          <a href="{{ url_for('admin.logout') }}" class="nav-link" style="color:#ef4444;font-weight:600;" title="Sign out">
+            Logout ↗
+          </a>
+        {% else %}
+          <a href="{{ url_for('admin.login') }}" class="nav-link {% if request.endpoint == 'admin.login' %}active{% endif %}" style="font-weight:600;">
+            🔐 Login
+          </a>
+        {% endif %}
       </div>
     </div>
   </nav>

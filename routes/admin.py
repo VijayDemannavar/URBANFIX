@@ -16,24 +16,27 @@ Authentication (Phase 4D):
 """
 
 import base64
+from collections import defaultdict
 import csv
 import hmac
 import io
 import logging
 import os
+import time
 
 import sqlite3
 
 from flask import (
     Blueprint, render_template, request, abort,
     redirect, url_for, flash, current_app, Response,
+    session,
 )
 from ai.hotspot_detector import get_hotspot_detector
 
 import database as db
 from config import (
     COMPLAINT_CATEGORIES, COMPLAINT_STATUSES, PRIORITY_LEVELS,
-    ADMIN_AUTH_MODE, ADMIN_PASSWORD, DASHBOARD_PAGE_SIZE,
+    ADMIN_AUTH_MODE, ADMIN_PASSWORD, ADMIN_USERNAME, DASHBOARD_PAGE_SIZE,
     UPLOAD_DIR,
 )
 from routes.csrf import verify_csrf
@@ -43,22 +46,80 @@ logger = logging.getLogger(__name__)
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 
-# ── Admin authentication (Phase 4D) ──────────────────────────────────────────
+# ── Admin Login Rate Limiting ────────────────────────────────────────────────
+_FAILED_LOGINS = defaultdict(list)
+_MAX_LOGIN_FAILURES = 5
+_LOCKOUT_SECONDS = 60
+_WINDOW_SECONDS = 300
 
-def _check_admin_auth() -> None:
+
+def _get_client_ip() -> str:
+    if request.headers.get("X-Forwarded-For"):
+        return request.headers.get("X-Forwarded-For").split(",")[0].strip()
+    return request.remote_addr or "127.0.0.1"
+
+
+def _is_login_rate_limited(ip: str) -> bool:
+    now = time.time()
+    recent = [t for t in _FAILED_LOGINS[ip] if now - t < _WINDOW_SECONDS]
+    _FAILED_LOGINS[ip] = recent
+    if len(recent) >= _MAX_LOGIN_FAILURES:
+        if recent and (now - recent[-1] < _LOCKOUT_SECONDS):
+            return True
+    return False
+
+
+def _record_failed_login(ip: str) -> None:
+    _FAILED_LOGINS[ip].append(time.time())
+
+
+def _clear_failed_logins(ip: str) -> None:
+    _FAILED_LOGINS.pop(ip, None)
+
+
+# ── Admin authentication & Authorization ─────────────────────────────────────
+
+def _check_admin_auth():
     """
-    Enforce admin authentication based on ADMIN_AUTH_MODE.
-
-    Skipped entirely when ``app.config["TESTING"]`` is ``True`` so that the
-    existing test suite passes without supplying credentials.
-
-    Raises:
-        HTTP 503 – if ADMIN_AUTH_MODE is "disabled"
-        HTTP 401 – if ADMIN_AUTH_MODE is "password" and credentials are missing
-                   or incorrect
+    Enforce admin authentication, CSRF validation on writes, and demo permissions.
     """
+    exempt_endpoints = {"admin.login", "admin.demo_login", "admin.logout"}
+    if request.endpoint in exempt_endpoints:
+        return None
+
+    # Defense-in-depth: Reject forged state-changing requests early with 403
+    if request.method not in ("GET", "HEAD", "OPTIONS") and not verify_csrf():
+        abort(403, description="CSRF token missing or invalid.")
+
+    # Demo Mode enforcement: read-only access for all GET/HEAD/OPTIONS
+    if session.get("is_demo"):
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            logger.warning(
+                "Demo account '%s' blocked from write action: %s %s",
+                session.get("admin_user", "demo"), request.method, request.path
+            )
+            abort(403, description="Demo mode is read-only. Data modifications are disabled.")
+        return None
+
+    # Authenticated Administrator session
+    if session.get("admin_logged_in"):
+        return None
+
+    # Basic Auth header (for backward compatibility and test suites)
+    expected_password = current_app.config.get("ADMIN_PASSWORD", ADMIN_PASSWORD)
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Basic "):
+        try:
+            decoded = base64.b64decode(auth_header[6:]).decode("utf-8", errors="replace")
+            _user, _, supplied = decoded.partition(":")
+            if expected_password and hmac.compare_digest(supplied, expected_password):
+                return None  # authenticated via HTTP Basic Auth
+        except Exception:
+            pass
+
+    # Bypass in test mode when not testing demo mode
     if current_app.config.get("TESTING"):
-        return  # bypass in test mode
+        return None
 
     mode = current_app.config.get("ADMIN_AUTH_MODE", ADMIN_AUTH_MODE)
 
@@ -66,28 +127,104 @@ def _check_admin_auth() -> None:
         abort(503)
 
     if mode == "password":
-        expected_password = current_app.config.get("ADMIN_PASSWORD", ADMIN_PASSWORD)
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Basic "):
-            try:
-                decoded   = base64.b64decode(auth_header[6:]).decode("utf-8", errors="replace")
-                _user, _, supplied = decoded.partition(":")
-                if expected_password and hmac.compare_digest(supplied, expected_password):
-                    return  # authenticated
-            except Exception:
-                pass
-        # Not authenticated: challenge the browser
+        # Legacy password mode challenges with HTTP 401 WWW-Authenticate
         from flask import make_response
         resp = make_response("Admin authentication required.", 401)
         resp.headers["WWW-Authenticate"] = 'Basic realm="CivicAI Admin"'
         abort(resp)
 
-    # mode == "open" → no check required
+    if mode == "open":
+        return None
+
+    # Default "session" mode:
+    # If unauthenticated non-safe request (POST/PUT/DELETE): reject with 403 Forbidden
+    # (Note: unauthenticated requests with valid CSRF token but no admin session are redirected)
+    # Redirect unauthenticated visitor to login page
+    flash("Please log in or explore using the demo account.", "warning")
+    next_url = request.full_path if request.query_string else request.path
+    if not next_url or next_url.startswith("/admin/login") or next_url.startswith("/admin/logout") or next_url.startswith("/admin/demo"):
+        next_url = url_for("admin.dashboard")
+    return redirect(url_for("admin.login", next=next_url))
 
 
 @admin_bp.before_request
 def _admin_auth_before_request():
-    _check_admin_auth()
+    return _check_admin_auth()
+
+
+# ── Authentication & Demo Routes ──────────────────────────────────────────────
+
+@admin_bp.route("/login", methods=["GET", "POST"])
+def login():
+    """
+    Administrator portal login page and credential verification.
+    """
+    next_url = request.args.get("next") or request.form.get("next") or url_for("admin.dashboard")
+    if not next_url.startswith("/") or next_url.startswith("//") or next_url.startswith("/admin/login") or next_url.startswith("/admin/logout"):
+        next_url = url_for("admin.dashboard")
+
+    # If already logged in as admin (non-demo), redirect directly
+    if session.get("admin_logged_in") and not session.get("is_demo"):
+        return redirect(next_url)
+
+    if request.method == "POST":
+        if not verify_csrf():
+            flash("Security token missing or invalid. Please try again.", "error")
+            return render_template("admin/login.html", next_url=next_url), 400
+
+        ip = _get_client_ip()
+        if _is_login_rate_limited(ip):
+            flash("Too many failed login attempts. Please wait 60 seconds before trying again.", "error")
+            return render_template("admin/login.html", next_url=next_url, username=request.form.get("username", "")), 429
+
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+
+        expected_user = current_app.config.get("ADMIN_USERNAME", ADMIN_USERNAME)
+        expected_pw   = current_app.config.get("ADMIN_PASSWORD", ADMIN_PASSWORD)
+
+        if not expected_pw:
+            _record_failed_login(ip)
+            flash("Administrator login is not configured with a password in this environment. You can explore using the Demo Account below.", "error")
+            return render_template("admin/login.html", next_url=next_url, username=username), 401
+
+        if username == expected_user and hmac.compare_digest(password, expected_pw):
+            _clear_failed_logins(ip)
+            session["admin_logged_in"] = True
+            session["is_demo"] = False
+            session["admin_user"] = username
+            flash(f"Welcome back, {username}! Administrator session active.", "success")
+            return redirect(next_url)
+        else:
+            _record_failed_login(ip)
+            flash("Invalid username or password. Please verify your credentials.", "error")
+            return render_template("admin/login.html", next_url=next_url, username=username), 401
+
+    return render_template("admin/login.html", next_url=next_url)
+
+
+@admin_bp.route("/demo", methods=["GET", "POST"])
+def demo_login():
+    """
+    Activate one-click read-only demo session without requiring credentials.
+    """
+    session["admin_logged_in"] = True
+    session["is_demo"] = True
+    session["admin_user"] = "Demo Reviewer"
+    flash("Welcome to Demo Mode! You have read-only access to explore reports, maps, and analytics.", "info")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.route("/logout", methods=["GET", "POST"])
+def logout():
+    """
+    Terminate admin or demo session and redirect to login page.
+    """
+    session.pop("admin_logged_in", None)
+    session.pop("is_demo", None)
+    session.pop("admin_user", None)
+    flash("You have been signed out.", "info")
+    return redirect(url_for("admin.login"))
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -331,6 +468,9 @@ def complaint_update(complaint_id: str):
 
     CSRF-protected: rejects requests without a valid session token.
     """
+    if session.get("is_demo"):
+        abort(403, description="Demo mode is read-only. Modifying complaint data is disabled.")
+
     if not verify_csrf():
         abort(403)
 
@@ -448,6 +588,9 @@ def complaint_add_note(complaint_id: str):
 
     CSRF-protected.
     """
+    if session.get("is_demo"):
+        abort(403, description="Demo mode is read-only. Adding action notes is disabled.")
+
     if not verify_csrf():
         abort(403)
 

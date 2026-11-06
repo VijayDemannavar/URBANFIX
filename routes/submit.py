@@ -117,8 +117,8 @@ def _validate_form(form: dict) -> list[str]:
     elif category not in COMPLAINT_CATEGORIES:
         errors.append("Invalid category selected.")
 
-    lat = form.get("latitude", "").strip()
-    lon = form.get("longitude", "").strip()
+    lat = (form.get("latitude") or "").strip()
+    lon = (form.get("longitude") or "").strip()
 
     if lat:
         try:
@@ -343,13 +343,13 @@ def complaint_form():
 
     # ── Build complaint record ────────────────────────────────────────
     complaint_id = _generate_complaint_id()
-    title        = form.get("title", "").strip()
-    description  = form.get("description", "").strip()
-    category     = form.get("category", "").strip()
-    address      = form.get("address", "").strip() or None
+    title        = (form.get("title") or "").strip()
+    description  = (form.get("description") or "").strip()
+    category     = (form.get("category") or "").strip()
+    address      = (form.get("address") or "").strip() or None
 
-    lat_raw = form.get("latitude", "").strip()
-    lon_raw = form.get("longitude", "").strip()
+    lat_raw = (form.get("latitude") or "").strip()
+    lon_raw = (form.get("longitude") or "").strip()
     latitude  = float(lat_raw) if lat_raw else None
     longitude = float(lon_raw) if lon_raw else None
 

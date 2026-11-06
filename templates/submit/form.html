@@ -11,7 +11,7 @@
   <div class="form-section">
 
     {# ── Server-side validation errors ── #}
-    {% if errors %}
+    {% if errors and errors|length > 0 %}
       <div class="alert alert-error" role="alert">
         <strong>Please fix the following errors:</strong>
         <ul style="margin-top:.5rem;padding-left:1.2rem;">
