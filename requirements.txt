@@ -1,0 +1,15 @@
+# CivicAI – Requirements
+# Phase 1-2: Flask baseline
+# Phase 3: AI categorisation + duplicate detection (numpy only, no model downloads)
+
+# Web framework
+Flask==3.0.3
+Werkzeug==3.0.3
+
+# Environment variable management
+python-dotenv==1.0.1
+
+# Phase 3 – AI (numpy is the only new dependency; already available in environment)
+# numpy       – TF-IDF vectors and cosine similarity for categoriser + duplicate detector
+# No sentence-transformers, no transformers, no paid APIs required.
+numpy>=1.24

@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+{% block title %}{{ complaint.complaint_id }} – Complaint Detail{% endblock %}
+
+{% block extra_head %}
+  {% if complaint.latitude and complaint.longitude %}
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="anonymous">
+  <style>
+    #detail-map {
+      width: 100%;
+      height: 200px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+  </style>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <!-- Breadcrumb -->
+  <nav aria-label="Breadcrumb" style="margin-bottom:1rem;font-size:.85rem;color:var(--text-muted);">
+    <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+    &rsaquo;
+    <span>{{ complaint.complaint_id }}</span>
+  </nav>
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="flex justify-between items-center" style="flex-wrap:wrap;gap:1rem;">
+      <div>
+        <h1 style="font-size:1.4rem;">{{ complaint.title }}</h1>
+        <p class="text-muted text-sm" style="margin-top:.25rem;">
+          <span class="td-id">{{ complaint.complaint_id }}</span>
+          &nbsp;&middot;&nbsp;
+          Submitted {{ complaint.created_at[:16] }}
+        </p>
+      </div>
+      <div class="flex gap-1" style="flex-wrap:wrap;">
+        {% set status_class = complaint.status | lower | replace(' ', '-') %}
+        <span class="badge badge-{{ status_class }}" style="padding:.4rem .9rem;font-size:.9rem;">
+          {{ complaint.status }}
+        </span>
+        {% set p_class = complaint.priority_level | lower %}
+        <span class="badge badge-{{ p_class }}" style="padding:.4rem .9rem;font-size:.9rem;">
+          {{ complaint.priority_level }} Priority
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="detail-grid">
+
+    <!-- ── Left column: main info ──────────────────────────────────── -->
+    <div>
+
+      <!-- Description -->
+      <div class="card" style="margin-bottom:1.25rem;">
+        <h2 class="card-title">📄 Description</h2>
+        <div class="detail-description">{{ complaint.description }}</div>
+      </div>
+
+      <!-- Meta grid -->
+      <div class="card" style="margin-bottom:1.25rem;">
+        <h2 class="card-title">ℹ️ Details</h2>
+        <div class="detail-meta">
+          <div class="meta-item">
+            <label>Category</label>
+            <span>{{ complaint.category }}</span>
+          </div>
+          <div class="meta-item">
+            <label>Status</label>
+            <span class="badge badge-{{ complaint.status | lower | replace(' ', '-') }}">
+              {{ complaint.status }}
+            </span>
+          </div>
+          <div class="meta-item">
+            <label>Priority Score</label>
+            <span>{{ "%.0f"|format(complaint.priority_score) }} / 100</span>
+          </div>
+          <div class="meta-item">
+            <label>Priority Level</label>
+            <span class="badge badge-{{ complaint.priority_level | lower }}">
+              {{ complaint.priority_level }}
+            </span>
+          </div>
+          {% if complaint.address %}
+          <div class="meta-item" style="grid-column:1/-1;">
+            <label>Address</label>
+            <span>{{ complaint.address }}</span>
+          </div>
+          {% endif %}
+          {% if complaint.latitude and complaint.longitude %}
+          <div class="meta-item">
+            <label>Latitude</label>
+            <span>{{ complaint.latitude }}</span>
+          </div>
+          <div class="meta-item">
+            <label>Longitude</label>
+            <span>{{ complaint.longitude }}</span>
+          </div>
+          {% endif %}
+          {% if department %}
+          <div class="meta-item">
+            <label>Department</label>
+            <span>{{ department.department_name }}</span>
+          </div>
+          {% endif %}
+          {% if officer %}
+          <div class="meta-item">
+            <label>Assigned Officer</label>
+            <span>{{ officer.officer_name }}</span>
+          </div>
+          {% endif %}
+          <div class="meta-item">
+            <label>Submitted</label>
+            <span>{{ complaint.created_at[:16] }}</span>
+          </div>
+          <div class="meta-item">
+            <label>Last Updated</label>
+            <span>{{ complaint.updated_at[:16] }}</span>
+          </div>
+          {% if complaint.resolved_at %}
+          <div class="meta-item">
+            <label>Resolved At</label>
+            <span>{{ complaint.resolved_at[:16] }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Location mini-map (Phase 4C: Leaflet) -->
+      {% if complaint.latitude and complaint.longitude %}
+      <div class="card" style="margin-bottom:1.25rem;">
+        <h2 class="card-title">📍 Location</h2>
+        <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:.6rem;">
+          {{ complaint.latitude }}, {{ complaint.longitude }}
+          {% if complaint.address %} &mdash; {{ complaint.address | e }}{% endif %}
+        </p>
+        <div id="detail-map" aria-label="Complaint location map"></div>
+      </div>
+      {% endif %}
+
+      <!-- Action notes -->
+      {% if action_notes %}
+      <div class="card" style="margin-bottom:1.25rem;">
+        <h2 class="card-title">📝 Action Notes</h2>
+        <ul class="history-list">
+          {% for note in action_notes %}
+          <li class="history-item">
+            <span class="history-dot" style="background:var(--accent-green);"></span>
+            <div>
+              <p style="font-size:.9rem;">{{ note.note }}</p>
+              <p class="text-muted text-sm">{{ note.created_at[:16] }}</p>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <!-- ── Update Status form ─────────────────────────────────────── -->
+      <div class="card" style="margin-bottom:1.25rem;">
+        <h2 class="card-title">✏️ Update Status</h2>
+        <form method="POST"
+              action="{{ url_for('admin.complaint_update', complaint_id=complaint.complaint_id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
+            <div>
+              <label for="new_status" style="font-size:.82rem;">New Status</label>
+              <select id="new_status" name="new_status" style="font-size:.88rem;">
+                <option value="">— No change —</option>
+                {% for st in statuses %}
+                  <option value="{{ st }}"
+                    {{ 'selected' if complaint.status == st else '' }}>
+                    {{ st }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="action_note_status" style="font-size:.82rem;">Note (optional)</label>
+              <input type="text" id="action_note_status" name="action_note"
+                     placeholder="Reason for status change"
+                     maxlength="300" style="font-size:.88rem;">
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" style="font-size:.85rem;padding:.4rem 1rem;">
+            Update Status
+          </button>
+        </form>
+      </div>
+
+      <!-- ── Assign Department / Officer form ──────────────────────── -->
+      <div class="card" style="margin-bottom:1.25rem;">
+        <h2 class="card-title">🏢 Assign Department &amp; Officer</h2>
+        <form method="POST"
+              action="{{ url_for('admin.complaint_update', complaint_id=complaint.complaint_id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
+            <div>
+              <label for="department_id" style="font-size:.82rem;">Department</label>
+              <select id="department_id" name="department_id" style="font-size:.88rem;">
+                <option value="0">— Unassigned —</option>
+                {% for dept in departments %}
+                  <option value="{{ dept.id }}"
+                    {{ 'selected' if complaint.department_id == dept.id else '' }}>
+                    {{ dept.department_name | e }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="officer_id" style="font-size:.82rem;">Officer</label>
+              <select id="officer_id" name="officer_id" style="font-size:.88rem;">
+                <option value="0">— Unassigned —</option>
+                {% for off in all_officers %}
+                  <option value="{{ off.id }}"
+                    {{ 'selected' if complaint.assigned_officer == off.id else '' }}>
+                    {{ off.officer_name | e }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" style="font-size:.85rem;padding:.4rem 1rem;">
+            Save Assignment
+          </button>
+        </form>
+      </div>
+
+    </div><!-- /left -->
+
+    <!-- ── Right column: sidebar ───────────────────────────────────── -->
+    <div>
+
+      <!-- Image -->
+      {% if complaint.image_path %}
+      <div class="sidebar-card" style="margin-bottom:1.25rem;">
+        <div class="sidebar-header">📷 Photo Evidence</div>
+        <div class="sidebar-body">
+          <img src="{{ url_for('serve_upload', filename=complaint.image_path) }}"
+               alt="Complaint image"
+               class="complaint-image">
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Status history -->
+      <div class="sidebar-card" style="margin-bottom:1.25rem;">
+        <div class="sidebar-header">🕐 Status History</div>
+        <div class="sidebar-body">
+          {% if status_history %}
+          <ul class="history-list">
+            {% for h in status_history %}
+            <li class="history-item">
+              <span class="history-dot"></span>
+              <div>
+                <p style="font-size:.85rem;font-weight:600;">
+                  {% if h.old_status %}
+                    {{ h.old_status }} → {{ h.new_status }}
+                  {% else %}
+                    {{ h.new_status }}
+                  {% endif %}
+                </p>
+                {% if h.action_note %}
+                <p style="font-size:.82rem;color:var(--text-muted);">{{ h.action_note }}</p>
+                {% endif %}
+                <p class="text-muted text-sm">{{ h.changed_at[:16] }}</p>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted text-sm">No history recorded.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Duplicate links -->
+      <div class="sidebar-card" style="margin-bottom:1.25rem;">
+        <div class="sidebar-header">🔁 Duplicate / Related Reports</div>
+        <div class="sidebar-body">
+          {% if duplicate_links %}
+          <ul class="history-list">
+            {% for d in duplicate_links %}
+            <li class="history-item">
+              <span class="history-dot" style="background:var(--accent-orange);"></span>
+              <div>
+                <a href="{{ url_for('admin.complaint_detail', complaint_id=d.matched_complaint_id) }}"
+                   style="font-size:.85rem;font-weight:600;">
+                  {{ d.matched_complaint_id }}
+                </a>
+                <p class="text-muted text-sm">
+                  Similarity: {{ "%.0f"|format(d.similarity_score * 100) }}%
+                </p>
+                {% if d.explanation %}
+                <p class="text-muted text-sm" style="font-style:italic;">
+                  {{ d.explanation | truncate(90) }}
+                </p>
+                {% endif %}
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted text-sm">No duplicate complaints detected.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Add Action Note form -->
+      <div class="sidebar-card" style="margin-bottom:1.25rem;">
+        <div class="sidebar-header">📝 Add Action Note</div>
+        <div class="sidebar-body">
+          <form method="POST"
+                action="{{ url_for('admin.complaint_add_note', complaint_id=complaint.complaint_id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group" style="margin-bottom:.6rem;">
+              <textarea name="note" rows="3"
+                        placeholder="Enter action note…"
+                        maxlength="1000"
+                        style="font-size:.85rem;resize:vertical;min-height:70px;"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary"
+                    style="font-size:.82rem;padding:.35rem .85rem;">
+              Add Note
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- AI Analysis (Phase 3) -->
+      <div class="sidebar-card">
+        <div class="sidebar-header">🤖 AI Analysis</div>
+        <div class="sidebar-body" style="font-size:.87rem;">
+
+          {# ── Categorisation ── #}
+          <p style="font-weight:700;margin-bottom:.5rem;">Categorisation</p>
+          <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+            <tr>
+              <td style="color:var(--text-muted);padding:.2rem .4rem .2rem 0;width:46%;">Citizen category</td>
+              <td style="padding:.2rem 0;">{{ complaint.category }}</td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-muted);padding:.2rem .4rem .2rem 0;">AI prediction</td>
+              <td style="padding:.2rem 0;">
+                {% if complaint.ai_category %}
+                  {{ complaint.ai_category }}
+                  {% if complaint.ai_category != complaint.category %}
+                    <span style="color:var(--accent-orange);font-size:.75rem;margin-left:.3rem;">⚠ differs</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">Not analysed yet</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-muted);padding:.2rem .4rem .2rem 0;">Confidence</td>
+              <td style="padding:.2rem 0;">
+                {% if complaint.ai_confidence is not none and complaint.ai_confidence %}
+                  {{ "%.0f"|format(complaint.ai_confidence * 100) }}%
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-muted);padding:.2rem .4rem .2rem 0;">Review needed</td>
+              <td style="padding:.2rem 0;">
+                {% if complaint.ai_needs_review %}
+                  <span class="badge badge-under-review">⚠ Yes</span>
+                {% else %}
+                  <span class="badge badge-resolved">✓ No</span>
+                {% endif %}
+              </td>
+            </tr>
+          </table>
+
+          {% if complaint.ai_explanation %}
+          <p style="margin-top:.65rem;color:var(--text-muted);font-style:italic;font-size:.82rem;line-height:1.5;">
+            {{ complaint.ai_explanation }}
+          </p>
+          {% endif %}
+
+          {% if complaint.priority_reason %}
+          <p style="margin-top:.65rem;"><strong>Priority Reason:</strong> {{ complaint.priority_reason }}</p>
+          {% endif %}
+
+        </div>
+      </div>
+
+    </div><!-- /right -->
+  </div><!-- /detail-grid -->
+
+  <!-- Back button -->
+  <div style="margin-top:1.5rem;">
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">
+      ← Back to Dashboard
+    </a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {% if complaint.latitude and complaint.longitude %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN2GqaY="
+          crossorigin="anonymous"></script>
+  <script>
+    (function () {
+      var lat = {{ complaint.latitude | tojson }};
+      var lon = {{ complaint.longitude | tojson }};
+      var title = {{ complaint.complaint_id | tojson }};
+
+      var map = L.map("detail-map", { zoomControl: true }).setView([lat, lon], 16);
+
+      L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19
+        }
+      ).addTo(map);
+
+      L.marker([lat, lon])
+        .addTo(map)
+        .bindPopup("<strong>" + title + "</strong>")
+        .openPopup();
+    })();
+  </script>
+  {% endif %}
+{% endblock %}

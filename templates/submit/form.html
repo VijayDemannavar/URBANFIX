@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Report a Civic Issue{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>📝 Report a Civic Issue</h1>
+    <p>Help us improve your city. Fill in the details below and we'll make sure the right department receives your complaint.</p>
+  </div>
+
+  <div class="form-section">
+
+    {# ── Server-side validation errors ── #}
+    {% if errors %}
+      <div class="alert alert-error" role="alert">
+        <strong>Please fix the following errors:</strong>
+        <ul style="margin-top:.5rem;padding-left:1.2rem;">
+          {% for e in errors %}
+            <li>{{ e }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <form id="complaint-form"
+            action="{{ url_for('submit.complaint_form') }}"
+            method="POST"
+            enctype="multipart/form-data"
+            novalidate>
+
+        <!-- CSRF token -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- ── Section 1: Core details ─────────────────────────── -->
+        <h3 class="card-title" style="margin-bottom:1.25rem;">📌 Issue Details</h3>
+
+        <div class="form-group">
+          <label for="title">Complaint Title <span class="req">*</span></label>
+          <input type="text" id="title" name="title"
+                 value="{{ form_data.title or '' }}"
+                 placeholder="e.g. Large pothole on MG Road near 2nd Cross"
+                 maxlength="160"
+                 required>
+          <span id="title-error" class="field-error"></span>
+          <p class="form-hint">Keep it concise. At least 10 characters.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="category">Category <span class="req">*</span></label>
+          <select id="category" name="category" required>
+            <option value="">— Select a category —</option>
+            {% for cat in categories %}
+              <option value="{{ cat }}"
+                {{ 'selected' if form_data.category == cat else '' }}>
+                {{ cat }}
+              </option>
+            {% endfor %}
+          </select>
+          <span id="category-error" class="field-error"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Detailed Description <span class="req">*</span></label>
+          <textarea id="description" name="description"
+                    rows="5"
+                    placeholder="Describe the problem in detail: what happened, how long it has been there, who it affects, etc."
+                    maxlength="2000"
+                    required>{{ form_data.description or '' }}</textarea>
+          <span id="description-error" class="field-error"></span>
+          <p class="form-hint">At least 20 characters. Be specific so officials can act quickly.</p>
+        </div>
+
+        <!-- ── Section 2: Location ──────────────────────────────── -->
+        <h3 class="card-title" style="margin-top:1.75rem;margin-bottom:1.25rem;">📍 Location</h3>
+
+        <div class="form-group">
+          <label for="address">Address / Landmark</label>
+          <input type="text" id="address" name="address"
+                 value="{{ form_data.address or '' }}"
+                 placeholder="e.g. Near Central Park Gate 2, Novapolis"
+                 maxlength="300">
+          <span id="address-error" class="field-error"></span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="latitude">Latitude <span class="text-muted text-sm">(optional)</span></label>
+            <input type="number" id="latitude" name="latitude"
+                   value="{{ form_data.latitude or '' }}"
+                   step="any" min="-90" max="90"
+                   placeholder="e.g. 12.9716">
+            <span id="latitude-error" class="field-error"></span>
+          </div>
+          <div class="form-group">
+            <label for="longitude">Longitude <span class="text-muted text-sm">(optional)</span></label>
+            <input type="number" id="longitude" name="longitude"
+                   value="{{ form_data.longitude or '' }}"
+                   step="any" min="-180" max="180"
+                   placeholder="e.g. 77.5946">
+            <span id="longitude-error" class="field-error"></span>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:-.5rem;">
+          <button type="button" id="use-location" class="btn btn-secondary"
+                  style="font-size:.85rem;padding:.4rem .9rem;">
+            📍 Use My Location
+          </button>
+          <span id="geo-status" style="font-size:.8rem;color:var(--text-muted);margin-left:.6rem;"></span>
+          <p class="form-hint">Automatically fills latitude and longitude from your device.</p>
+        </div>
+
+        <!-- ── Section 3: Image upload ──────────────────────────── -->
+        <h3 class="card-title" style="margin-top:1.75rem;margin-bottom:1.25rem;">📷 Photo Evidence <span class="text-muted text-sm">(optional)</span></h3>
+
+        <div class="form-group">
+          <div class="file-drop" id="image-drop" role="button" tabindex="0"
+               aria-label="Upload complaint photo">
+            <input type="file" id="image-input" name="image"
+                   accept=".png,.jpg,.jpeg,.gif,.webp">
+            <div class="drop-label">
+              <span style="font-size:1.75rem">📁</span><br>
+              <strong>Click to upload</strong> or drag &amp; drop<br>
+              PNG, JPG, GIF, WEBP — max 5 MB
+            </div>
+          </div>
+          <span id="image-error" class="field-error"></span>
+          <div id="image-preview"><img src="" alt="Preview"></div>
+        </div>
+
+        <!-- ── Submit ───────────────────────────────────────────── -->
+        <div class="flex gap-2 items-center" style="margin-top:1.75rem;flex-wrap:wrap;">
+          <button type="submit" class="btn btn-primary btn-lg">
+            🚀 Submit Complaint
+          </button>
+          <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">
+            View Dashboard
+          </a>
+        </div>
+
+      </form>
+    </div><!-- /card -->
+
+    <!-- Info note -->
+    <div class="alert alert-info mt-2" style="font-size:.87rem;">
+      ℹ️ <strong>Privacy:</strong> Your complaint will be visible to city officials only.
+      Do not include personal phone numbers or email in the description.
+    </div>
+
+  </div><!-- /form-section -->
+</div>
+{% endblock %}

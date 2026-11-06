@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}URBANFIX{% endblock %} – AI-Powered Urban Problem Management Platform</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="page-wrap">
+
+  <!-- ── Navigation ───────────────────────────────────────────────── -->
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
+    <div class="navbar-inner">
+      <a href="{{ url_for('index') }}" class="navbar-brand" aria-label="URBANFIX Home">
+        <svg class="brand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6a2 2 0 110 4 2 2 0 010-4z"/></svg>
+        URBANFIX
+        <span class="tagline">AI-Powered Urban Problem Management Platform</span>
+      </a>
+      <div class="navbar-links">
+        <a href="{{ url_for('submit.complaint_form') }}"
+           class="nav-link {% if request.endpoint and request.endpoint.startswith('submit.') %}active{% endif %}">
+          📝 Report Issue
+        </a>
+        <a href="{{ url_for('admin.dashboard') }}"
+           class="nav-link {% if request.endpoint == 'admin.dashboard' or request.endpoint == 'admin.complaint_detail' %}active{% endif %}">
+          📊 Admin
+        </a>
+        <a href="{{ url_for('admin.hotspots') }}"
+           class="nav-link {% if request.endpoint == 'admin.hotspots' %}active{% endif %}">
+          🗺 Hotspots
+        </a>
+        <a href="{{ url_for('admin.action_brief') }}"
+           class="nav-link {% if request.endpoint == 'admin.action_brief' or request.endpoint == 'admin.action_brief_generate' %}active{% endif %}">
+          📋 Brief
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Flash messages ───────────────────────────────────────────── -->
+  <div class="container" style="padding-top:.75rem;">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+  </div>
+
+  <!-- ── Main content ─────────────────────────────────────────────── -->
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── Footer ───────────────────────────────────────────────────── -->
+  <footer>
+    <div class="container">
+      CivicAI &mdash; From Complaints to Action &nbsp;&middot;&nbsp; PromptWars &times; ASTRA Hackathon
+      &nbsp;&middot;&nbsp; Phase 3D
+    </div>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

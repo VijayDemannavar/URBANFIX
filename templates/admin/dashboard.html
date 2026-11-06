@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <div class="flex justify-between items-center" style="flex-wrap:wrap;gap:1rem;">
+      <div>
+        <h1>Admin Dashboard</h1>
+        <p>All civic complaints — search, filter, and track status.</p>
+      </div>
+      <a href="{{ url_for('submit.complaint_form') }}" class="btn btn-primary">
+        + New Complaint
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Stats ─────────────────────────────────────────────────────── -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon blue">📋</div>
+      <div>
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">Total Complaints</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">🕐</div>
+      <div>
+        <div class="stat-value">{{ stats.submitted + stats.under_review }}</div>
+        <div class="stat-label">Pending</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon purple">⚙️</div>
+      <div>
+        <div class="stat-value">{{ stats.assigned + stats.in_progress }}</div>
+        <div class="stat-label">In Progress</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">✅</div>
+      <div>
+        <div class="stat-value">{{ stats.resolved + stats.closed }}</div>
+        <div class="stat-label">Resolved</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon red">🚨</div>
+      <div>
+        <div class="stat-value">{{ stats.critical }}</div>
+        <div class="stat-label">Critical Priority</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Server-side Filters ──────────────────────────────────────── -->
+  {#
+    The filter form submits GET to preserve bookmarkability and pagination.
+    Client-side JS (existing) still filters within the current page for
+    instant feedback; server-side filters control which page is loaded.
+  #}
+  <form method="GET" action="{{ url_for('admin.dashboard') }}" id="filter-form">
+    <div class="filters-bar">
+      <input type="text" id="search-input" name="q" class="search-input"
+             placeholder="🔍 Search by ID, title, location…"
+             value="{{ active_q }}"
+             aria-label="Search complaints">
+
+      <select id="filter-category" name="category" aria-label="Filter by category">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+          <option value="{{ cat }}"
+            {{ 'selected' if active_category == cat else '' }}>
+            {{ cat }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <select id="filter-status" name="status" aria-label="Filter by status">
+        <option value="">All Statuses</option>
+        {% for st in statuses %}
+          <option value="{{ st }}"
+            {{ 'selected' if active_status == st else '' }}>
+            {{ st }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <select id="filter-priority" name="priority" aria-label="Filter by priority">
+        <option value="">All Priorities</option>
+        {% for p in priority_levels %}
+          <option value="{{ p }}"
+            {{ 'selected' if active_priority == p else '' }}>
+            {{ p }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <!-- preserve sort in filter form submissions -->
+      <input type="hidden" name="sort"  value="{{ active_sort }}">
+      <input type="hidden" name="order" value="{{ active_order }}">
+
+      <button type="submit" class="btn btn-primary" style="padding:.45rem .9rem;">🔍 Apply</button>
+      <a href="{{ url_for('admin.dashboard') }}" id="clear-filters" class="btn btn-secondary">✕ Clear</a>
+    </div>
+  </form>
+
+  <!-- Matching count info -->
+  <p class="results-info" style="font-size:.85rem;color:var(--text-muted);margin-bottom:.5rem;">
+    {% if active_q or active_category or active_status or active_priority %}
+      Showing <strong>{{ total_matching }}</strong> matching complaint{{ 's' if total_matching != 1 else '' }}
+      (page {{ page }} of {{ total_pages }})
+    {% else %}
+      Showing page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong>
+      — <strong>{{ total_matching }}</strong> complaint{{ 's' if total_matching != 1 else '' }} total
+    {% endif %}
+  </p>
+  <p id="results-count" class="results-info"></p>
+
+  <!-- ── Table ─────────────────────────────────────────────────────── -->
+  {% if complaints %}
+  <div class="table-wrap">
+    <table aria-label="Complaints list">
+      <thead>
+        <tr>
+          {% set sort_cols = [
+              ('complaint_id', 'Complaint ID', 0),
+              ('title',        'Title',        1),
+              ('category',     'Category',     2),
+              ('address',      'Location',     3),
+              ('status',       'Status',       4),
+              ('priority',     'Priority',     5),
+              ('submitted',    'Submitted',    6),
+          ] %}
+          {% for col_key, col_label, col_idx in sort_cols %}
+          {% set new_order = 'asc' if (active_sort == col_key and active_order == 'desc') else 'desc' %}
+          <th class="sortable" data-col="{{ col_idx }}">
+            <a href="{{ url_for('admin.dashboard', q=active_q, category=active_category, status=active_status, priority=active_priority, sort=col_key, order=new_order, page=1) }}"
+               style="text-decoration:none;color:inherit;">
+              {{ col_label }}
+              {% if active_sort == col_key %}
+                {{ '▲' if active_order == 'asc' else '▼' }}
+              {% endif %}
+            </a>
+          </th>
+          {% endfor %}
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="complaints-tbody">
+        {% for c in complaints %}
+        {# Build a searchable text blob for client-side filtering within the page #}
+        {% set search_text = (c.complaint_id ~ ' ' ~ c.title ~ ' ' ~ (c.address or '') ~ ' ' ~ c.category ~ ' ' ~ c.status) | lower %}
+        <tr data-cid="{{ c.complaint_id }}"
+            data-text="{{ search_text }}"
+            data-cat="{{ c.category }}"
+            data-status="{{ c.status }}"
+            data-priority="{{ c.priority_level }}">
+          <td class="td-id">{{ c.complaint_id }}</td>
+          <td class="td-title">
+            <a href="{{ url_for('admin.complaint_detail', complaint_id=c.complaint_id) }}">
+              {{ c.title | truncate(55) }}
+            </a>
+            {% if c.ai_needs_review %}
+              <span class="badge badge-under-review" style="font-size:.7rem;padding:.1rem .4rem;margin-left:.35rem;"
+                    title="AI categorisation needs manual review">🤖 Review</span>
+            {% endif %}
+          </td>
+          <td class="td-truncate">{{ c.category }}</td>
+          <td class="td-truncate">{{ c.address or '—' }}</td>
+          <td>
+            {% set status_class = c.status | lower | replace(' ', '-') %}
+            <span class="badge badge-{{ status_class }}">{{ c.status }}</span>
+          </td>
+          <td>
+            {% set p_class = c.priority_level | lower %}
+            <span class="badge badge-{{ p_class }}">{{ c.priority_level }}</span>
+          </td>
+          <td class="td-date">{{ c.created_at[:10] }}</td>
+          <td>
+            <a href="{{ url_for('admin.complaint_detail', complaint_id=c.complaint_id) }}"
+               class="action-link">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div id="empty-state" class="empty-state" style="display:none;">
+    <div class="empty-icon">🔍</div>
+    <p>No complaints match your search criteria.</p>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary mt-2">
+      Clear Filters
+    </a>
+  </div>
+
+  <!-- ── Pagination controls ────────────────────────────────────────── -->
+  {% if total_pages > 1 %}
+  <nav aria-label="Pagination" class="pagination-nav"
+       style="display:flex;align-items:center;gap:.6rem;margin-top:1.25rem;flex-wrap:wrap;">
+
+    {% if page > 1 %}
+    <a href="{{ url_for('admin.dashboard', q=active_q, category=active_category, status=active_status, priority=active_priority, sort=active_sort, order=active_order, page=1) }}"
+       class="btn btn-secondary" style="padding:.35rem .75rem;font-size:.85rem;">« First</a>
+    <a href="{{ url_for('admin.dashboard', q=active_q, category=active_category, status=active_status, priority=active_priority, sort=active_sort, order=active_order, page=page-1) }}"
+       class="btn btn-secondary" style="padding:.35rem .75rem;font-size:.85rem;">‹ Previous</a>
+    {% endif %}
+
+    <span style="font-size:.85rem;color:var(--text-muted);padding:0 .4rem;">
+      Page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong>
+    </span>
+
+    {% if page < total_pages %}
+    <a href="{{ url_for('admin.dashboard', q=active_q, category=active_category, status=active_status, priority=active_priority, sort=active_sort, order=active_order, page=page+1) }}"
+       class="btn btn-secondary" style="padding:.35rem .75rem;font-size:.85rem;">Next ›</a>
+    <a href="{{ url_for('admin.dashboard', q=active_q, category=active_category, status=active_status, priority=active_priority, sort=active_sort, order=active_order, page=total_pages) }}"
+       class="btn btn-secondary" style="padding:.35rem .75rem;font-size:.85rem;">Last »</a>
+    {% endif %}
+
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    {% if active_q or active_category or active_status or active_priority %}
+    <div class="empty-icon">🔍</div>
+    <p>No complaints match your filters.</p>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary mt-2">
+      Clear Filters
+    </a>
+    {% else %}
+    <div class="empty-icon">📭</div>
+    <p>No complaints have been submitted yet.</p>
+    <a href="{{ url_for('submit.complaint_form') }}" class="btn btn-primary mt-2">
+      Report First Issue
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

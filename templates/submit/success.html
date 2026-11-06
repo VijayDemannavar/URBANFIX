@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Complaint Submitted Successfully{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="success-card card">
+
+    <div class="success-icon" aria-hidden="true">✅</div>
+
+    <h1 style="font-size:1.6rem;font-weight:700;color:var(--brand-dark);margin-bottom:.5rem;">
+      Your complaint has been submitted!
+    </h1>
+
+    <p class="text-muted" style="margin-bottom:1.25rem;">
+      Thank you for reporting this issue. The concerned department has been
+      notified and will review it shortly.
+    </p>
+
+    <p style="font-size:.9rem;font-weight:600;margin-bottom:.35rem;">Your Complaint ID:</p>
+    <div class="complaint-id-box" data-id="{{ complaint_id }}"
+         title="Click to copy" role="button" tabindex="0"
+         aria-label="Complaint ID – click to copy">
+      📋 {{ complaint_id }}
+    </div>
+    <p class="text-muted text-sm mt-1">Save this ID to track your complaint status.</p>
+
+    <div class="card" style="margin-top:1.75rem;text-align:left;background:var(--bg);">
+      <table style="width:100%;font-size:.9rem;border-collapse:collapse;">
+        <tr>
+          <td style="padding:.4rem .75rem;color:var(--text-muted);width:40%;font-weight:600;">Title</td>
+          <td style="padding:.4rem .75rem;">{{ complaint.title }}</td>
+        </tr>
+        <tr style="background:var(--surface);">
+          <td style="padding:.4rem .75rem;color:var(--text-muted);font-weight:600;">Category</td>
+          <td style="padding:.4rem .75rem;">{{ complaint.category }}</td>
+        </tr>
+        <tr>
+          <td style="padding:.4rem .75rem;color:var(--text-muted);font-weight:600;">Status</td>
+          <td style="padding:.4rem .75rem;">
+            <span class="badge badge-submitted">{{ complaint.status }}</span>
+          </td>
+        </tr>
+        <tr style="background:var(--surface);">
+          <td style="padding:.4rem .75rem;color:var(--text-muted);font-weight:600;">Submitted</td>
+          <td style="padding:.4rem .75rem;">{{ complaint.created_at }}</td>
+        </tr>
+        {% if complaint.address %}
+        <tr>
+          <td style="padding:.4rem .75rem;color:var(--text-muted);font-weight:600;">Location</td>
+          <td style="padding:.4rem .75rem;">{{ complaint.address }}</td>
+        </tr>
+        {% endif %}
+      </table>
+    </div>
+
+    <div class="flex gap-2 items-center" style="margin-top:1.75rem;flex-wrap:wrap;justify-content:center;">
+      <a href="{{ url_for('submit.complaint_form') }}" class="btn btn-primary">
+        📝 Report Another Issue
+      </a>
+    </div>
+
+    <div class="alert alert-info" style="margin-top:1.25rem;text-align:left;font-size:.87rem;">
+      <strong>📋 Track your complaint:</strong>
+      Save your Complaint ID <strong>{{ complaint_id }}</strong> to follow up with the
+      relevant department. You can quote this ID when contacting city authorities.
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Hotspot Map{% endblock %}
+
+{% block extra_head %}
+  <!-- Leaflet 1.9 CSS -->
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="anonymous">
+  <style>
+    #hotspot-map {
+      width: 100%;
+      height: 440px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: #e8f0fe;
+    }
+    .hotspot-empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+    }
+    .hotspot-empty .empty-icon { font-size: 3rem; margin-bottom: .75rem; }
+    .hotspot-empty h3 { margin: 0 0 .5rem; font-size: 1.1rem; color: var(--text); }
+    .hotspot-empty p  { margin: 0; font-size: .9rem; max-width: 440px; margin: 0 auto; }
+    .priority-pill {
+      display: inline-block;
+      padding: .15rem .5rem;
+      border-radius: 9999px;
+      font-size: .72rem;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+    .pill-critical { background:#fde8e8; color:#c0392b; }
+    .pill-high     { background:#fef3e2; color:#d35400; }
+    .hotspot-ids { font-size: .78rem; line-height: 1.8; }
+    .hotspot-ids a { margin-right: .35rem; }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <!-- Breadcrumb -->
+  <nav aria-label="Breadcrumb" style="margin-bottom:1rem;font-size:.85rem;color:var(--text-muted);">
+    <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+    &rsaquo;
+    <span>Hotspot Map</span>
+  </nav>
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="flex justify-between items-center" style="flex-wrap:wrap;gap:1rem;">
+      <div>
+        <h1>🗺 Hotspot Map</h1>
+        <p>Geographic clusters of civic complaints detected by AI.</p>
+      </div>
+      <div class="flex gap-1" style="flex-wrap:wrap;align-items:center;">
+        <span class="badge" style="background:var(--surface);color:var(--text-muted);border:1px solid var(--border);padding:.35rem .85rem;">
+          📍 {{ total_geo }} complaint{{ 's' if total_geo != 1 else '' }} with GPS
+        </span>
+        <span class="badge" style="background:var(--brand-light);color:var(--brand-blue);border:1px solid var(--border);padding:.35rem .85rem;">
+          🔴 {{ hotspots | length }} hotspot{{ 's' if (hotspots | length) != 1 else '' }} detected
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {% if not hotspots %}
+  <!-- ── Empty state ──────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="hotspot-empty">
+      <div class="empty-icon">🗺</div>
+      <h3>No hotspots detected yet</h3>
+      <p>
+        A hotspot requires at least
+        <strong>{{ config.AI_HOTSPOT_MIN_COMPLAINTS if config is defined else 3 }} complaints</strong>
+        within a <strong>0.5 km radius</strong>.
+        {% if total_geo == 0 %}
+          There are currently no complaints with GPS coordinates.
+          Ask citizens to enable location sharing when submitting complaints.
+        {% else %}
+          There {{ 'are' if total_geo != 1 else 'is' }} currently
+          <strong>{{ total_geo }}</strong> geo-located complaint{{ 's' if total_geo != 1 else '' }},
+          but none form a dense enough cluster.
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- ── Map ─────────────────────────────────────────────────────── -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h2 class="card-title">📍 Cluster Map</h2>
+    <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:.75rem;">
+      Circle size reflects complaint count. Click a marker for details.
+    </p>
+    <div id="hotspot-map" aria-label="Hotspot cluster map"></div>
+  </div>
+
+  <!-- ── Summary table ────────────────────────────────────────────── -->
+  <div class="card">
+    <h2 class="card-title">📋 Hotspot Summary</h2>
+    <div style="overflow-x:auto;">
+      <table class="data-table" style="width:100%;">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Centre (lat, lon)</th>
+            <th>Dominant Category</th>
+            <th>Complaints</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th>Avg Score</th>
+            <th>Complaint IDs</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in hotspots %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td style="font-family:monospace;font-size:.8rem;">
+              {{ "%.4f"|format(h.center_lat) }},&nbsp;{{ "%.4f"|format(h.center_lon) }}
+            </td>
+            <td>{{ h.dominant_category | e }}</td>
+            <td><strong>{{ h.count }}</strong></td>
+            <td>
+              {% if h.critical_count > 0 %}
+                <span class="priority-pill pill-critical">{{ h.critical_count }}</span>
+              {% else %}
+                <span style="color:var(--text-muted);">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if h.high_count > 0 %}
+                <span class="priority-pill pill-high">{{ h.high_count }}</span>
+              {% else %}
+                <span style="color:var(--text-muted);">—</span>
+              {% endif %}
+            </td>
+            <td>{{ "%.1f"|format(h.avg_priority_score) }}</td>
+            <td class="hotspot-ids">
+              {% for cid in h.complaint_ids %}
+                <a href="{{ url_for('admin.complaint_detail', complaint_id=cid) }}"
+                   class="action-link">{{ cid | e }}</a>
+              {% endfor %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div><!-- /.container -->
+{% endblock %}
+
+{% block extra_scripts %}
+{% if hotspots %}
+  <!-- Leaflet 1.9 JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN2GqaY="
+          crossorigin="anonymous"></script>
+
+  <script>
+    (function () {
+      /* hotspots_json is a list of plain dicts serialised by Jinja2's tojson
+         filter — values are JSON-encoded by the server, so they are safe.
+         No manual string construction of user-supplied data occurs here. */
+      var hotspotsObj = {{ hotspots_json | tojson }};
+
+      /* Map centre: mean of all hotspot centres */
+      var sumLat = 0, sumLon = 0;
+      hotspotsObj.forEach(function(h) { sumLat += h.center_lat; sumLon += h.center_lon; });
+      var cLat = sumLat / hotspotsObj.length;
+      var cLon = sumLon / hotspotsObj.length;
+
+      var map = L.map("hotspot-map").setView([cLat, cLon], 14);
+
+      L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxZoom: 19
+        }
+      ).addTo(map);
+
+      hotspotsObj.forEach(function(h, idx) {
+        /* Radius on screen: proportional to complaint count, min 300 m */
+        var displayRadius = Math.max(300, h.count * 100);
+
+        /* Colour by severity */
+        var colour = h.critical_count > 0 ? "#e74c3c"
+                   : h.high_count > 0      ? "#e67e22"
+                   : "#3498db";
+
+        var circle = L.circle([h.center_lat, h.center_lon], {
+          radius:      displayRadius,
+          color:       colour,
+          fillColor:   colour,
+          fillOpacity: 0.18,
+          weight:      2
+        }).addTo(map);
+
+        /* Build popup — escape is handled server-side via tojson;
+           all string values are JSON-escaped by the browser's JSON parser. */
+        var idsHtml = h.complaint_ids.map(function(cid) {
+          /* cid comes from JSON; it is a plain complaint-id string like CMP-0001 */
+          return '<a href="/admin/complaint/' + encodeURIComponent(cid) + '">' +
+                 cid.replace(/[<>&"]/g, function(c) {
+                   return {"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c];
+                 }) + '</a>';
+        }).join(" ");
+
+        var cat = h.dominant_category.replace(/[<>&"]/g, function(c) {
+          return {"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c];
+        });
+
+        var popupHtml =
+          "<div style='min-width:200px;font-size:.85rem;'>" +
+          "<strong>Hotspot #" + (idx + 1) + "</strong><br>" +
+          "<b>Category:</b> " + cat + "<br>" +
+          "<b>Complaints:</b> " + h.count + "<br>" +
+          (h.critical_count ? "<b>Critical:</b> " + h.critical_count + "<br>" : "") +
+          (h.high_count     ? "<b>High:</b> "     + h.high_count     + "<br>" : "") +
+          "<b>Avg score:</b> " + h.avg_priority_score.toFixed(1) + "<br>" +
+          "<b>IDs:</b> " + idsHtml +
+          "</div>";
+
+        circle.bindPopup(popupHtml);
+
+        /* Centre marker */
+        L.circleMarker([h.center_lat, h.center_lon], {
+          radius: 6, color: colour, fillColor: colour, fillOpacity: 0.9, weight: 2
+        }).addTo(map).bindPopup(popupHtml);
+      });
+    })();
+  </script>
+{% endif %}
+{% endblock %}

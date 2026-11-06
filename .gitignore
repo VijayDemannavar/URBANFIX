@@ -1,0 +1,26 @@
+venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+.env.*
+
+# Local databases and backups
+database/*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded user files
+uploads/*
+!uploads/.gitkeep
+
+# Duplicate project copies and archives
+civicai/
+civicai_fixed/
+civicai_review.zip
+
+# Environment template is safe to include
+!.env.example
+
+# Logs
+*.log

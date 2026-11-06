@@ -1,0 +1,130 @@
+/* ================================================================
+   CivicAI – Form-specific and admin-specific styles (Phase 2 only)
+   ================================================================ */
+
+/* Character counter */
+.char-counter {
+  font-size: .75rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: .2rem;
+}
+.char-counter.warn { color: var(--accent-orange); }
+.char-counter.over { color: var(--accent-red); font-weight: 600; }
+
+/* Step indicator for submission form */
+.form-steps {
+  display: flex;
+  gap: 0;
+  margin-bottom: 2rem;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.form-step {
+  flex: 1;
+  padding: .6rem .5rem;
+  text-align: center;
+  font-size: .78rem;
+  font-weight: 600;
+  background: var(--bg);
+  color: var(--text-muted);
+  border-right: 1px solid var(--border);
+}
+.form-step:last-child { border-right: none; }
+.form-step.active { background: var(--brand-blue); color: #fff; }
+.form-step.done   { background: var(--accent-green); color: #fff; }
+
+/* Admin table action links */
+.action-link {
+  font-size: .8rem;
+  font-weight: 600;
+  padding: .2rem .6rem;
+  border-radius: var(--radius-sm);
+  background: var(--brand-light);
+  color: var(--brand-blue);
+}
+.action-link:hover { background: var(--brand-blue); color: #fff; text-decoration: none; }
+
+/* Results count label */
+.results-info {
+  font-size: .83rem;
+  color: var(--text-muted);
+  margin-bottom: .75rem;
+}
+
+/* Detail sidebar */
+.sidebar-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.sidebar-card .sidebar-header {
+  background: var(--brand-dark);
+  color: #fff;
+  padding: .75rem 1rem;
+  font-size: .85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.sidebar-card .sidebar-body { padding: 1rem; }
+
+/* Map placeholder */
+.map-placeholder {
+  background: #e8f0fe;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: .85rem;
+  gap: .4rem;
+}
+.map-placeholder .map-icon { font-size: 1.75rem; }
+
+/* Image viewer in detail */
+.complaint-image {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  margin-top: .75rem;
+}
+
+/* Filter active indicator */
+.filter-active-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  background: var(--brand-light);
+  color: var(--brand-blue);
+  padding: .2rem .65rem;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 600;
+}
+
+.filter-active-tag .remove {
+  cursor: pointer;
+  font-size: .95rem;
+  line-height: 1;
+  opacity: .7;
+}
+.filter-active-tag .remove:hover { opacity: 1; }
+
+/* Sortable headers */
+th.sortable { cursor: pointer; }
+th.sortable:hover { color: var(--brand-blue); }
+th.sort-asc::after  { content: " ↑"; color: var(--brand-blue); }
+th.sort-desc::after { content: " ↓"; color: var(--brand-blue); }
+
+/* data-table — alias that inherits all base table styles from main.css.
+   Used by hotspots.html summary table.  No additional overrides needed. */
+table.data-table { /* inherits width:100%, border-collapse:collapse, etc. */ }
