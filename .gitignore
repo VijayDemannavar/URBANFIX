@@ -24,3 +24,6 @@ civicai_review.zip
 
 # Logs
 *.log
+
+node_modules/
+.netlify/

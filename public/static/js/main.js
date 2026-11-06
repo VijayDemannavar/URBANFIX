@@ -46,7 +46,7 @@ function initFileDrop() {
   });
 
   function handleFile(file) {
-    const MAX = 5 * 1024 * 1024;
+    const MAX = 4 * 1024 * 1024;
     const TYPES = ["image/png","image/jpeg","image/gif","image/webp"];
     const errEl = $("#image-error");
 
@@ -56,7 +56,7 @@ function initFileDrop() {
       return;
     }
     if (file.size > MAX) {
-      if (errEl) { errEl.textContent = "Image must be under 5 MB."; errEl.classList.add("show"); }
+      if (errEl) { errEl.textContent = "Image must be under 4 MB."; errEl.classList.add("show"); }
       input.value = "";
       return;
     }
