@@ -1,0 +1,48 @@
+/* Track page styling – fits URBANFIX dark‑navy/blue theme */
+
+/* Timeline container */
+.timeline {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 1rem;
+  border-left: 3px solid var(--primary, #007bff);
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 1.5rem;
+  padding-left: 1rem;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -0.75rem;
+  top: 0.2rem;
+  width: 0.8rem;
+  height: 0.8rem;
+  background-color: var(--primary, #007bff);
+  border-radius: 50%;
+}
+
+.timeline-date {
+  display: block;
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.timeline-status {
+  font-weight: 600;
+  color: #212529;
+}
+
+@media (max-width: 576px) {
+  .timeline {
+    border-left: 2px solid var(--primary, #007bff);
+  }
+  .timeline-item::before {
+    left: -0.5rem;
+    width: 0.6rem;
+    height: 0.6rem;
+  }
+}

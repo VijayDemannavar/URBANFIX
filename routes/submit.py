@@ -139,7 +139,65 @@ def _validate_form(form: dict) -> list[str]:
     return errors
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# ── Routes ─────────────────────────────────────────────────────────────────---
+
+@submit_bp.route("/track", methods=["GET", "POST"]) 
+def track():
+    """Citizen‑facing complaint tracking page.
+
+    - GET: render empty form.
+    - POST: validate CSRF, look up complaint by ``complaint_id`` from the form.
+      If found, fetch its chronological status history and render the result.
+      If not found, display a friendly ``not found`` message.
+    """
+
+    if request.method == "GET":
+        return render_template(
+            "track.html",
+            complaint=None,
+            history=None,
+            error_message=None,
+        )
+
+    # POST – verify CSRF
+    if not verify_csrf():
+        abort(403)
+
+    complaint_id = request.form.get("complaint_id", "").strip()
+    if not complaint_id:
+        error_message = "Please enter a complaint ID."
+        return render_template(
+            "track.html",
+            complaint=None,
+            history=None,
+            error_message=error_message,
+        ), 400
+
+    complaint = db.get_complaint_by_id(complaint_id)
+    if complaint is None:
+        error_message = f"Complaint ID {complaint_id} not found."
+        return render_template(
+            "track.html",
+            complaint=None,
+            history=None,
+            error_message=error_message,
+        ), 404
+
+    # Fetch status history, ordered chronologically
+    with db.db_cursor() as (conn, cur):
+        cur.execute(
+            "SELECT old_status, new_status, changed_at FROM status_history "
+            "WHERE complaint_id = ? ORDER BY changed_at ASC;",
+            (complaint_id,),
+        )
+        history = cur.fetchall()
+
+    return render_template(
+        "track.html",
+        complaint=complaint,
+        history=history,
+        error_message=None,
+    )
 
 @submit_bp.route("/", methods=["GET", "POST"])
 def complaint_form():
