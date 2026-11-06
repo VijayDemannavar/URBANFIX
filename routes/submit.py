@@ -15,7 +15,7 @@ from werkzeug.utils import secure_filename
 
 from flask import (
     Blueprint, render_template, request,
-    redirect, url_for, flash, current_app, abort,
+    redirect, url_for, flash, current_app, abort, session,
 )
 
 import database as db
@@ -145,31 +145,37 @@ def _validate_form(form: dict) -> list[str]:
 def track():
     """Citizen‑facing complaint tracking page.
 
-    - GET: render empty form.
+    - GET: render empty form (or look up if ?complaint_id query param is supplied).
     - POST: validate CSRF, look up complaint by ``complaint_id`` from the form.
-      If found, fetch its chronological status history and render the result.
+      If found, fetch its chronological status history, resolution data, and notifications.
       If not found, display a friendly ``not found`` message.
     """
+    cid_param = request.args.get("complaint_id", "").strip()
 
-    if request.method == "GET":
+    if request.method == "GET" and not cid_param:
         return render_template(
             "track.html",
             complaint=None,
             history=None,
+            notifications=[],
             error_message=None,
         )
 
-    # POST – verify CSRF
-    if not verify_csrf():
-        abort(403)
+    complaint_id = ""
+    if request.method == "POST":
+        if not verify_csrf():
+            abort(403)
+        complaint_id = request.form.get("complaint_id", "").strip()
+    elif request.method == "GET" and cid_param:
+        complaint_id = cid_param
 
-    complaint_id = request.form.get("complaint_id", "").strip()
     if not complaint_id:
         error_message = "Please enter a complaint ID."
         return render_template(
             "track.html",
             complaint=None,
             history=None,
+            notifications=[],
             error_message=error_message,
         ), 400
 
@@ -180,8 +186,16 @@ def track():
             "track.html",
             complaint=None,
             history=None,
+            notifications=[],
             error_message=error_message,
         ), 404
+
+    # Keep track in citizen session for convenient notifications & portal access
+    my_list = session.get("my_complaints", [])
+    if complaint_id not in my_list:
+        my_list = list(my_list)
+        my_list.append(complaint_id)
+        session["my_complaints"] = my_list[-20:]
 
     # Fetch status history, ordered chronologically
     with db.db_cursor() as (conn, cur):
@@ -192,12 +206,102 @@ def track():
         )
         history = cur.fetchall()
 
+    notifications = db.get_notifications_by_complaint(complaint_id)
+
     return render_template(
         "track.html",
         complaint=complaint,
         history=history,
+        notifications=notifications,
         error_message=None,
     )
+
+
+@submit_bp.route("/notifications", methods=["GET"])
+def notifications_view():
+    """Citizen notification center displaying updates on submitted and tracked complaints."""
+    req_cid = request.args.get("complaint_id", "").strip()
+    raw_tracked = session.get("my_complaints", [])
+    tracked = list(raw_tracked) if isinstance(raw_tracked, (list, tuple)) else []
+
+    active_cids = []
+    if req_cid:
+        # Only show notifications for complaints belonging to the current citizen session
+        if req_cid in tracked:
+            active_cids = [req_cid]
+        else:
+            active_cids = []
+    elif tracked:
+        active_cids = list(tracked)
+
+    notifications = []
+    if active_cids:
+        notifications = db.get_notifications_for_complaints(active_cids)
+
+    unread_count = sum(1 for n in notifications if not n["is_read"])
+
+    return render_template(
+        "submit/notifications.html",
+        notifications=notifications,
+        unread_count=unread_count,
+        active_cids=active_cids,
+        searched_cid=req_cid,
+    )
+
+
+@submit_bp.route("/notifications/<int:notification_id>/read", methods=["POST"])
+def notification_mark_read(notification_id: int):
+    """Mark a notification as read after verifying citizen ownership."""
+    if not verify_csrf():
+        abort(403)
+
+    raw_tracked = session.get("my_complaints", [])
+    tracked = list(raw_tracked) if isinstance(raw_tracked, (list, tuple)) else []
+
+    if not tracked:
+        abort(403)
+
+    notif = db.get_notification_by_id(notification_id)
+    if not notif:
+        abort(404)
+
+    if notif["complaint_id"] not in tracked:
+        abort(403)
+
+    db.mark_notification_as_read(notification_id, complaint_ids=tracked)
+    flash("Notification marked as read.", "success")
+    ref = request.referrer or url_for("submit.notifications_view")
+    return redirect(ref)
+
+
+@submit_bp.route("/notifications/read-all", methods=["POST"])
+def notification_mark_all_read():
+    """Mark all active notifications as read for authorized citizen complaints."""
+    if not verify_csrf():
+        abort(403)
+
+    raw_tracked = session.get("my_complaints", [])
+    tracked = list(raw_tracked) if isinstance(raw_tracked, (list, tuple)) else []
+
+    # If the citizen has no tracked complaints, produce zero affected notifications
+    # and never call mark_all_notifications_read(None)
+    if not tracked:
+        ref = request.referrer or url_for("submit.notifications_view")
+        return redirect(ref)
+
+    req_cid = request.form.get("complaint_id", "").strip()
+    if req_cid:
+        if req_cid not in tracked:
+            abort(403)
+        target_cids = [req_cid]
+    else:
+        target_cids = list(tracked)
+
+    affected = db.mark_all_notifications_read(target_cids)
+    if affected > 0:
+        flash("All notifications marked as read.", "success")
+    ref = request.referrer or url_for("submit.notifications_view")
+    return redirect(ref)
 
 @submit_bp.route("/", methods=["GET", "POST"])
 def complaint_form():
@@ -269,6 +373,20 @@ def complaint_form():
             action_note="Complaint submitted by citizen.",
         )
 
+        # Initial notification
+        db.create_notification(
+            complaint_id,
+            "Complaint Registered",
+            f"Your complaint '{title[:40]}' ({complaint_id}) has been recorded with status 'Submitted'.",
+        )
+
+        # Track in citizen session
+        my_list = session.get("my_complaints", [])
+        if complaint_id not in my_list:
+            my_list = list(my_list)
+            my_list.append(complaint_id)
+            session["my_complaints"] = my_list[-20:]
+
         logger.info("New complaint: %s [%s]", complaint_id, category)
 
     except Exception as exc:
@@ -331,6 +449,17 @@ def _run_ai_pipeline(
                     "Failed to save duplicate link %s→%s: %s",
                     complaint_id, match.complaint_id, dup_exc,
                 )
+
+        # Persist Phase 5 AI recommendations and feedback
+        if ai.get("ai_suggested_dept") or ai.get("ai_feedback"):
+            try:
+                db.save_ai_recommendations(
+                    complaint_id,
+                    ai.get("ai_suggested_dept", ""),
+                    ai.get("ai_feedback", ""),
+                )
+            except Exception as rec_exc:
+                logger.error("Failed to save recommendations for %s: %s", complaint_id, rec_exc)
 
         logger.info("AI pipeline complete for %s.", complaint_id)
 

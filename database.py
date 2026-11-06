@@ -147,6 +147,18 @@ CREATE TABLE IF NOT EXISTS action_notes (
 );
 """
 
+_CREATE_NOTIFICATIONS = """
+CREATE TABLE IF NOT EXISTS notifications (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    complaint_id TEXT    NOT NULL,
+    title        TEXT    NOT NULL,
+    message      TEXT    NOT NULL,
+    is_read      INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (complaint_id) REFERENCES complaints(complaint_id) ON DELETE CASCADE
+);
+"""
+
 # ── Indexes ───────────────────────────────────────────────────────────────────
 
 _INDEXES = [
@@ -160,6 +172,8 @@ _INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_duplicate_links_cid     ON duplicate_links(complaint_id);",
     "CREATE INDEX IF NOT EXISTS idx_action_notes_cid        ON action_notes(complaint_id);",
     "CREATE INDEX IF NOT EXISTS idx_officers_department     ON officers(department_id);",
+    "CREATE INDEX IF NOT EXISTS idx_notifications_cid       ON notifications(complaint_id);",
+    "CREATE INDEX IF NOT EXISTS idx_notifications_read      ON notifications(is_read);",
 ]
 
 
@@ -170,6 +184,14 @@ _PHASE3_MIGRATIONS = [
     "ALTER TABLE complaints ADD COLUMN ai_confidence   REAL;",
     "ALTER TABLE complaints ADD COLUMN ai_explanation  TEXT;",
     "ALTER TABLE complaints ADD COLUMN ai_needs_review INTEGER NOT NULL DEFAULT 0;",
+    "ALTER TABLE complaints ADD COLUMN resolution_message TEXT;",
+    "ALTER TABLE complaints ADD COLUMN resolution_image_path TEXT;",
+]
+
+# Phase 5 migrations: AI suggestions and clarity feedback
+_PHASE5_MIGRATIONS = [
+    "ALTER TABLE complaints ADD COLUMN ai_suggested_dept TEXT;",
+    "ALTER TABLE complaints ADD COLUMN ai_feedback TEXT;",
 ]
 
 
@@ -181,7 +203,7 @@ def _run_migrations() -> None:
     """
     conn = get_connection()
     try:
-        for ddl in _PHASE3_MIGRATIONS:
+        for ddl in _PHASE3_MIGRATIONS + _PHASE5_MIGRATIONS:
             try:
                 conn.execute(ddl)
                 conn.commit()
@@ -208,6 +230,7 @@ def init_db() -> None:
         _CREATE_STATUS_HISTORY,
         _CREATE_DUPLICATE_LINKS,
         _CREATE_ACTION_NOTES,
+        _CREATE_NOTIFICATIONS,
     ]
     with db_cursor() as (conn, cur):
         for ddl in tables:
@@ -405,6 +428,22 @@ def update_complaint_status(
                VALUES (?, ?, ?, ?);""",
             (complaint_id, old_status, new_status, action_note),
         )
+
+        # In-App Notification trigger on status change
+        if old_status != new_status:
+            try:
+                cur.execute(
+                    """INSERT INTO notifications (complaint_id, title, message)
+                       VALUES (?, ?, ?);""",
+                    (
+                        complaint_id,
+                        f"Status Updated: {new_status}",
+                        f"Complaint {complaint_id} status changed from '{old_status}' to '{new_status}'."
+                        + (f" Note: {action_note}" if action_note else ""),
+                    ),
+                )
+            except Exception as notif_exc:
+                logger.warning("Could not create notification for %s: %s", complaint_id, notif_exc)
     logger.info("Status updated: %s → %s", complaint_id, new_status)
 
 
@@ -574,6 +613,314 @@ def get_complaints_page(
     with db_cursor() as (conn, cur):
         cur.execute(sql, params)
         return cur.fetchall()
+
+
+# ── Notifications & Civic Platform Helpers (Phase 4C & Phase 5) ─────────────
+
+def create_notification(complaint_id: str, title: str, message: str) -> int | None:
+    """Insert an in-app notification for a complaint, preventing rapid duplicates."""
+    with db_cursor() as (conn, cur):
+        cur.execute(
+            """SELECT id FROM notifications
+               WHERE complaint_id = ? AND title = ? AND created_at >= datetime('now', '-5 minutes');""",
+            (complaint_id, title),
+        )
+        if cur.fetchone():
+            return None
+        cur.execute(
+            "INSERT INTO notifications (complaint_id, title, message) VALUES (?, ?, ?);",
+            (complaint_id, title, message),
+        )
+        return cur.lastrowid
+
+
+def get_notifications_by_complaint(complaint_id: str) -> list[sqlite3.Row]:
+    """Get all notifications for a given complaint, sorted newest first."""
+    with db_cursor() as (conn, cur):
+        cur.execute(
+            "SELECT * FROM notifications WHERE complaint_id = ? ORDER BY created_at DESC;",
+            (complaint_id,),
+        )
+        return cur.fetchall()
+
+
+def get_notifications_for_complaints(complaint_ids: list[str]) -> list[sqlite3.Row]:
+    """Fetch notifications for a list of complaints (e.g., from citizen session)."""
+    if not complaint_ids:
+        return []
+    placeholders = ",".join("?" for _ in complaint_ids)
+    with db_cursor() as (conn, cur):
+        cur.execute(
+            f"SELECT * FROM notifications WHERE complaint_id IN ({placeholders}) ORDER BY created_at DESC;",
+            complaint_ids,
+        )
+        return cur.fetchall()
+
+
+def get_unread_notification_count(complaint_ids: list[str] | None = None) -> int:
+    """Return count of unread notifications, optionally filtered to citizen's complaint IDs."""
+    if complaint_ids is not None and not complaint_ids:
+        return 0
+    with db_cursor() as (conn, cur):
+        if complaint_ids:
+            placeholders = ",".join("?" for _ in complaint_ids)
+            cur.execute(
+                f"SELECT COUNT(*) FROM notifications WHERE is_read = 0 AND complaint_id IN ({placeholders});",
+                complaint_ids,
+            )
+        else:
+            cur.execute("SELECT COUNT(*) FROM notifications WHERE is_read = 0;")
+        row = cur.fetchone()
+        return row[0] if row else 0
+
+
+def get_notification_by_id(notification_id: int) -> sqlite3.Row | None:
+    """Fetch a single notification by its primary key ID."""
+    with db_cursor() as (conn, cur):
+        cur.execute("SELECT * FROM notifications WHERE id = ?;", (notification_id,))
+        return cur.fetchone()
+
+
+def mark_notification_as_read(
+    notification_id: int,
+    complaint_ids: list[str] | None = None,
+) -> bool:
+    """
+    Mark a specific notification as read, optionally validating that it belongs
+    to one of the allowed complaint_ids.
+    If complaint_ids is an empty list, returns False immediately without modifying anything.
+    """
+    if complaint_ids is not None and not complaint_ids:
+        return False
+    with db_cursor() as (conn, cur):
+        if complaint_ids is not None:
+            placeholders = ",".join("?" for _ in complaint_ids)
+            cur.execute(
+                f"UPDATE notifications SET is_read = 1 WHERE id = ? AND complaint_id IN ({placeholders});",
+                [notification_id, *complaint_ids],
+            )
+        else:
+            cur.execute("UPDATE notifications SET is_read = 1 WHERE id = ?;", (notification_id,))
+        return cur.rowcount > 0
+
+
+def mark_all_notifications_read(complaint_ids: list[str] | None = None) -> int:
+    """
+    Mark all matching unread notifications as read.
+    If complaint_ids is an empty list, returns 0 without touching any rows.
+    If complaint_ids is None, marks all notifications in the system (maintenance use only).
+    """
+    if complaint_ids is not None and not complaint_ids:
+        return 0
+    with db_cursor() as (conn, cur):
+        if complaint_ids:
+            placeholders = ",".join("?" for _ in complaint_ids)
+            cur.execute(
+                f"UPDATE notifications SET is_read = 1 WHERE is_read = 0 AND complaint_id IN ({placeholders});",
+                complaint_ids,
+            )
+        else:
+            cur.execute("UPDATE notifications SET is_read = 1 WHERE is_read = 0;")
+        return cur.rowcount
+
+
+def get_platform_stats() -> dict:
+    """
+    Return high-level civic platform summary statistics for the homepage.
+    Always reflects real DB values, handles empty DB safely.
+    """
+    with db_cursor() as (conn, cur):
+        cur.execute(
+            """SELECT
+                 COUNT(*) AS total,
+                 SUM(status IN ('Resolved', 'Closed')) AS resolved,
+                 SUM(status IN ('Submitted', 'Under Review')) AS pending,
+                 SUM(status IN ('Assigned', 'In Progress')) AS in_progress,
+                 COUNT(DISTINCT category) AS active_categories
+               FROM complaints;"""
+        )
+        row = cur.fetchone()
+        if not row:
+            return {"total": 0, "resolved": 0, "pending": 0, "in_progress": 0, "active_categories": 0}
+        return {
+            "total": row["total"] or 0,
+            "resolved": row["resolved"] or 0,
+            "pending": row["pending"] or 0,
+            "in_progress": row["in_progress"] or 0,
+            "active_categories": row["active_categories"] or 0,
+        }
+
+
+def get_analytics_metrics() -> dict:
+    """
+    Calculate comprehensive analytics and resolution insights for admin dashboard.
+    All computed from live database records.
+    """
+    with db_cursor() as (conn, cur):
+        # Basic status & priority counts
+        cur.execute(
+            """SELECT
+                 COUNT(*) AS total,
+                 SUM(status = 'Submitted') AS submitted,
+                 SUM(status = 'Under Review') AS under_review,
+                 SUM(status = 'Assigned') AS assigned,
+                 SUM(status = 'In Progress') AS in_progress,
+                 SUM(status = 'Resolved') AS resolved,
+                 SUM(status = 'Closed') AS closed,
+                 SUM(status = 'Rejected') AS rejected,
+                 SUM(priority_level = 'Critical') AS critical,
+                 SUM(priority_level = 'High') AS high,
+                 SUM(priority_level = 'Medium') AS medium,
+                 SUM(priority_level = 'Low') AS low
+               FROM complaints;"""
+        )
+        row = cur.fetchone()
+        total = (row["total"] or 0) if row else 0
+        resolved_total = ((row["resolved"] or 0) + (row["closed"] or 0)) if row else 0
+        res_rate = round((resolved_total / total * 100), 1) if total > 0 else 0.0
+
+        # Average resolution time in days (julianday difference)
+        cur.execute(
+            """SELECT AVG(julianday(resolved_at) - julianday(created_at))
+               FROM complaints
+               WHERE resolved_at IS NOT NULL AND status IN ('Resolved', 'Closed');"""
+        )
+        avg_res_row = cur.fetchone()
+        avg_res_days = round(avg_res_row[0], 1) if (avg_res_row and avg_res_row[0] is not None) else 0.0
+
+        # Category distribution
+        cur.execute(
+            """SELECT category, COUNT(*) as cnt
+               FROM complaints
+               GROUP BY category
+               ORDER BY cnt DESC;"""
+        )
+        category_dist = [{"category": r["category"], "count": r["cnt"]} for r in cur.fetchall()]
+
+        # Monthly trends
+        cur.execute(
+            """SELECT substr(created_at, 1, 7) AS month, COUNT(*) as cnt,
+                      SUM(status IN ('Resolved', 'Closed')) as resolved_cnt
+               FROM complaints
+               GROUP BY month
+               ORDER BY month ASC;"""
+        )
+        monthly_trends = [{"month": r["month"], "count": r["cnt"], "resolved": r["resolved_cnt"] or 0} for r in cur.fetchall()]
+
+        # Department distribution
+        cur.execute(
+            """SELECT COALESCE(d.department_name, 'Unassigned') as dept_name,
+                      COUNT(c.id) as total_assigned,
+                      SUM(c.status NOT IN ('Resolved', 'Closed', 'Rejected')) as unresolved
+               FROM complaints c
+               LEFT JOIN departments d ON c.department_id = d.id
+               GROUP BY dept_name
+               ORDER BY total_assigned DESC;"""
+        )
+        dept_dist = [{"department": r["dept_name"], "total": r["total_assigned"], "unresolved": r["unresolved"] or 0} for r in cur.fetchall()]
+
+        # Long unresolved complaints (> 7 days or oldest pending)
+        cur.execute(
+            """SELECT complaint_id, title, category, status, priority_level, created_at
+               FROM complaints
+               WHERE status NOT IN ('Resolved', 'Closed', 'Rejected')
+               ORDER BY created_at ASC
+               LIMIT 10;"""
+        )
+        unresolved_long = [dict(r) for r in cur.fetchall()]
+
+        # Critical attention complaints
+        cur.execute(
+            """SELECT complaint_id, title, category, status, priority_level, priority_score, created_at
+               FROM complaints
+               WHERE priority_level = 'Critical' AND status NOT IN ('Resolved', 'Closed')
+               ORDER BY priority_score DESC, created_at ASC
+               LIMIT 10;"""
+        )
+        critical_urgent = [dict(r) for r in cur.fetchall()]
+
+        return {
+            "total": total,
+            "submitted": (row["submitted"] or 0) if row else 0,
+            "under_review": (row["under_review"] or 0) if row else 0,
+            "assigned": (row["assigned"] or 0) if row else 0,
+            "in_progress": (row["in_progress"] or 0) if row else 0,
+            "resolved": (row["resolved"] or 0) if row else 0,
+            "closed": (row["closed"] or 0) if row else 0,
+            "rejected": (row["rejected"] or 0) if row else 0,
+            "critical": (row["critical"] or 0) if row else 0,
+            "high": (row["high"] or 0) if row else 0,
+            "medium": (row["medium"] or 0) if row else 0,
+            "low": (row["low"] or 0) if row else 0,
+            "resolution_rate": res_rate,
+            "avg_resolution_days": avg_res_days,
+            "category_distribution": category_dist,
+            "monthly_trends": monthly_trends,
+            "department_distribution": dept_dist,
+            "unresolved_long": unresolved_long,
+            "critical_urgent": critical_urgent,
+        }
+
+
+def get_report_complaints(
+    category: str = "",
+    status: str = "",
+    priority: str = "",
+    department_id: int | None = None,
+    start_date: str = "",
+    end_date: str = "",
+) -> list[sqlite3.Row]:
+    """Retrieve filtered complaint records for reporting and CSV export."""
+    conditions = []
+    params: list = []
+    if category:
+        conditions.append("c.category = ?")
+        params.append(category)
+    if status:
+        conditions.append("c.status = ?")
+        params.append(status)
+    if priority:
+        conditions.append("c.priority_level = ?")
+        params.append(priority)
+    if department_id:
+        conditions.append("c.department_id = ?")
+        params.append(department_id)
+    if start_date:
+        conditions.append("c.created_at >= ?")
+        params.append(start_date + " 00:00:00")
+    if end_date:
+        conditions.append("c.created_at <= ?")
+        params.append(end_date + " 23:59:59")
+
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    sql = f"""
+        SELECT c.complaint_id, c.title, c.category, c.status,
+               c.priority_level, c.priority_score, c.address,
+               c.created_at, c.updated_at, c.resolved_at,
+               c.resolution_message,
+               COALESCE(d.department_name, 'Unassigned') as department_name,
+               COALESCE(o.officer_name, 'Unassigned') as officer_name
+        FROM complaints c
+        LEFT JOIN departments d ON c.department_id = d.id
+        LEFT JOIN officers o ON c.assigned_officer = o.id
+        {where}
+        ORDER BY c.created_at DESC;
+    """
+    with db_cursor() as (conn, cur):
+        cur.execute(sql, params)
+        return cur.fetchall()
+
+
+def save_ai_recommendations(complaint_id: str, suggested_dept: str, feedback: str) -> None:
+    """Save AI department suggestion and description clarity feedback."""
+    with db_cursor() as (conn, cur):
+        cur.execute(
+            """UPDATE complaints
+               SET ai_suggested_dept = ?,
+                   ai_feedback = ?
+               WHERE complaint_id = ?;""",
+            (suggested_dept, feedback, complaint_id),
+        )
 
 
 # ── Entry point (quick sanity check) ─────────────────────────────────────────

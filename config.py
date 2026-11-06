@@ -82,7 +82,7 @@ AI_BRIEF_MAX_STEPS          = 5      # max recommended steps in a brief
 #   "password" – HTTP Basic Auth using CIVICAI_ADMIN_PASSWORD env var
 #   "disabled" – admin routes return 503 (maintenance / lockdown)
 # The application refuses to start in "password" mode if the env var is empty.
-ADMIN_AUTH_MODE     = os.environ.get("CIVICAI_ADMIN_AUTH_MODE", "open")
+ADMIN_AUTH_MODE     = os.environ.get("CIVICAI_ADMIN_AUTH_MODE", "password")
 ADMIN_PASSWORD      = os.environ.get("CIVICAI_ADMIN_PASSWORD", "")
 
 # ── Dashboard pagination (Phase 4E) ──────────────────────────────────────────

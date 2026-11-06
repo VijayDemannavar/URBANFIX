@@ -111,9 +111,9 @@ def create_app(
     # ── Home redirect ─────────────────────────────────────────────────
     @app.route("/")
     def index():
-        # Render the new landing page instead of redirecting directly to the complaint form
         from flask import render_template
-        return render_template("home.html")
+        stats = db.get_platform_stats()
+        return render_template("home.html", stats=stats)
 
     # ── Upload serving (images) ───────────────────────────────────────
     @app.route("/uploads/<path:filename>")

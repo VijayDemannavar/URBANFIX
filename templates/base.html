@@ -6,6 +6,18 @@
   <title>{% block title %}URBANFIX{% endblock %} – AI-Powered Urban Problem Management Platform</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+  <style>
+    .navbar-links { flex-wrap: wrap; }
+    .nav-badge {
+      background: var(--brand-accent);
+      color: #fff;
+      font-size: .7rem;
+      padding: .1rem .4rem;
+      border-radius: 9999px;
+      margin-left: .25rem;
+      font-weight: 700;
+    }
+  </style>
   {% block extra_head %}{% endblock %}
 </head>
 <body class="page-wrap">
@@ -19,21 +31,45 @@
         <span class="tagline">AI-Powered Urban Problem Management Platform</span>
       </a>
       <div class="navbar-links">
+        <a href="{{ url_for('index') }}"
+           class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
+          🏠 Home
+        </a>
         <a href="{{ url_for('submit.complaint_form') }}"
-           class="nav-link {% if request.endpoint and request.endpoint.startswith('submit.') %}active{% endif %}">
+           class="nav-link {% if request.endpoint == 'submit.complaint_form' or request.endpoint == 'submit.success' %}active{% endif %}">
           📝 Report Issue
+        </a>
+        <a href="{{ url_for('submit.track') }}"
+           class="nav-link {% if request.endpoint == 'submit.track' %}active{% endif %}">
+          🔍 Track
+        </a>
+        <a href="{{ url_for('submit.notifications_view') }}"
+           class="nav-link {% if request.endpoint == 'submit.notifications_view' %}active{% endif %}">
+          🔔 Alerts
         </a>
         <a href="{{ url_for('admin.dashboard') }}"
            class="nav-link {% if request.endpoint == 'admin.dashboard' or request.endpoint == 'admin.complaint_detail' %}active{% endif %}">
           📊 Admin
         </a>
+        <a href="{{ url_for('admin.map_view') }}"
+           class="nav-link {% if request.endpoint == 'admin.map_view' %}active{% endif %}">
+          🗺 Map
+        </a>
         <a href="{{ url_for('admin.hotspots') }}"
            class="nav-link {% if request.endpoint == 'admin.hotspots' %}active{% endif %}">
-          🗺 Hotspots
+          📍 Hotspots
+        </a>
+        <a href="{{ url_for('admin.analytics_view') }}"
+           class="nav-link {% if request.endpoint == 'admin.analytics_view' %}active{% endif %}">
+          📈 Analytics
+        </a>
+        <a href="{{ url_for('admin.reports_view') }}"
+           class="nav-link {% if request.endpoint == 'admin.reports_view' %}active{% endif %}">
+          📋 Reports
         </a>
         <a href="{{ url_for('admin.action_brief') }}"
            class="nav-link {% if request.endpoint == 'admin.action_brief' or request.endpoint == 'admin.action_brief_generate' %}active{% endif %}">
-          📋 Brief
+          🤖 Brief
         </a>
       </div>
     </div>
@@ -55,9 +91,13 @@
 
   <!-- ── Footer ───────────────────────────────────────────────────── -->
   <footer>
-    <div class="container">
-      CivicAI &mdash; From Complaints to Action &nbsp;&middot;&nbsp; PromptWars &times; ASTRA Hackathon
-      &nbsp;&middot;&nbsp; Phase 3D
+    <div class="container" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;font-size:.85rem;">
+      <div>
+        <strong>URBANFIX</strong> &mdash; AI-Powered Urban Problem Management Platform.
+      </div>
+      <div>
+        Empowering Citizens &middot; Streamlining Municipal Response &middot; Real-time AI Automation
+      </div>
     </div>
   </footer>
 

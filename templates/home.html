@@ -3,51 +3,656 @@
 
 {% block extra_head %}
 <style>
-  .hero { background: var(--brand-navy); color: #fff; padding: 4rem 0; text-align: center; }
-  .hero h1 { font-size: 2.5rem; margin-bottom: 1rem; }
-  .hero p { font-size: 1.2rem; margin-bottom: 2rem; max-width: 800px; margin-left: auto; margin-right: auto; }
-  .cta-btn { background: var(--brand-accent); color: #fff; padding: 0.75rem 1.5rem; border-radius: var(--radius-sm); font-size: 1.1rem; text-decoration: none; display: inline-block; }
-  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin: 3rem 0; }
-  .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1.5rem; text-align: center; box-shadow: var(--shadow-sm); }
-  .feature-card .icon { width: 48px; height: 48px; margin-bottom: 0.5rem; fill: var(--brand-accent); }
+  /* ── Hero Section ────────────────────────────────────────────────── */
+  .hero-wrapper {
+    background: linear-gradient(135deg, #1b2a4a 0%, #0d1b33 100%);
+    color: #fff;
+    padding: 4.5rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 2.5rem;
+    align-items: center;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: .35rem .9rem;
+    border-radius: 9999px;
+    font-size: .85rem;
+    margin-bottom: 1.25rem;
+    color: #74b9ff;
+    font-weight: 600;
+  }
+  .hero-title {
+    font-size: 2.75rem;
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 1.25rem;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+  .hero-title span {
+    color: #38ef7d;
+    background: linear-gradient(to right, #38ef7d, #11998e);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero-desc {
+    font-size: 1.15rem;
+    line-height: 1.6;
+    color: #d1d8e0;
+    margin-bottom: 2rem;
+    max-width: 580px;
+  }
+  .hero-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .btn-hero-primary {
+    background: #38ef7d;
+    color: #0b2219;
+    font-weight: 700;
+    padding: .85rem 1.85rem;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    font-size: 1.05rem;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    transition: transform 0.15s ease, background 0.15s ease;
+    box-shadow: 0 4px 14px rgba(56, 239, 125, 0.4);
+  }
+  .btn-hero-primary:hover {
+    transform: translateY(-2px);
+    background: #2ecc71;
+    color: #05140e;
+    text-decoration: none;
+  }
+  .btn-hero-secondary {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    font-weight: 600;
+    padding: .85rem 1.85rem;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    font-size: 1.05rem;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    transition: background 0.15s ease;
+  }
+  .btn-hero-secondary:hover {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    text-decoration: none;
+  }
+
+  /* Hero Graphic Card */
+  .hero-card-preview {
+    background: rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: var(--radius-lg);
+    padding: 1.75rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.35);
+  }
+  .preview-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: .85rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .preview-item:last-child { border-bottom: none; }
+  .preview-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+  }
+
+  /* ── Stats Ribbon ────────────────────────────────────────────────── */
+  .stats-ribbon {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 2.25rem 1.5rem;
+  }
+  .stats-ribbon-grid {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+    text-align: center;
+  }
+  .ribbon-stat-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--brand-navy);
+    line-height: 1;
+    margin-bottom: .4rem;
+  }
+  .ribbon-stat-label {
+    font-size: .88rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  /* ── Section Styles ──────────────────────────────────────────────── */
+  .landing-section {
+    padding: 4rem 1.5rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .section-header {
+    text-align: center;
+    max-width: 680px;
+    margin: 0 auto 3rem auto;
+  }
+  .section-tag {
+    color: var(--brand-blue);
+    font-size: .82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: .5rem;
+    display: block;
+  }
+  .section-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--brand-navy);
+    margin-bottom: .75rem;
+    line-height: 1.25;
+  }
+  .section-subtitle {
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  /* ── Feature Cards Grid ──────────────────────────────────────────── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+  .feat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.75rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .feat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--brand-blue);
+  }
+  .feat-icon-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #eef2ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .feat-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: .5rem;
+  }
+  .feat-desc {
+    font-size: .92rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  /* ── Workflow Steps ──────────────────────────────────────────────── */
+  .workflow-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1.25rem;
+    position: relative;
+  }
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1.5rem 1.25rem;
+    text-align: center;
+    position: relative;
+  }
+  .step-num {
+    width: 32px;
+    height: 32px;
+    background: var(--brand-navy);
+    color: #fff;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: .85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem auto;
+  }
+  .step-title {
+    font-size: .98rem;
+    font-weight: 700;
+    margin-bottom: .4rem;
+    color: var(--text);
+  }
+  .step-desc {
+    font-size: .82rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+  }
+
+  /* ── Benefits Comparison ─────────────────────────────────────────── */
+  .benefits-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+  .benefit-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 2.25rem;
+  }
+  .benefit-list {
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0 0 0;
+  }
+  .benefit-list li {
+    padding: .65rem 0;
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    font-size: .95rem;
+    line-height: 1.45;
+    color: var(--text);
+  }
+
+  /* ── Call To Action Banner ───────────────────────────────────────── */
+  .cta-banner {
+    background: linear-gradient(135deg, #16a085 0%, #2c3e50 100%);
+    color: #fff;
+    border-radius: var(--radius-lg);
+    padding: 3.5rem 2rem;
+    text-align: center;
+    margin: 3rem auto;
+    max-width: 1100px;
+  }
+  .cta-banner h2 {
+    font-size: 2.25rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    color: #fff;
+  }
+  .cta-banner p {
+    font-size: 1.15rem;
+    color: #e8f8f5;
+    max-width: 620px;
+    margin: 0 auto 2rem auto;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 860px) {
+    .hero-container { grid-template-columns: 1fr; text-align: center; }
+    .hero-actions { justify-content: center; }
+    .hero-desc { margin-left: auto; margin-right: auto; }
+    .benefits-grid { grid-template-columns: 1fr; }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="hero">
-  <h1>URBANFIX</h1>
-  <p class="tagline">AI-Powered Urban Problem Management Platform</p>
-  <a href="{{ url_for('submit.complaint_form') }}" class="cta-btn">Report a Problem</a>
-  <a href="{{ url_for('admin.dashboard') }}" class="cta-btn" style="margin-left:1rem;background:var(--brand-navy);border:1px solid #fff;">Admin Dashboard</a>
-</div>
 
-<div class="container">
-  <section class="intro">
-    <h2 style="text-align:center;margin-top:2rem;">Empowering Citizens & City Services</h2>
-    <p style="text-align:center;max-width:720px;margin:auto;">URBANFIX lets residents quickly report issues, while city officials get AI‑assisted categorisation, priority scoring and hotspot detection – all in one secure platform.</p>
-  </section>
+<!-- ── HERO SECTION ────────────────────────────────────────────────── -->
+<section class="hero-wrapper">
+  <div class="hero-container">
+    <div>
+      <div class="hero-badge">
+        <span>⚡ Intelligent Civic Automation</span> &middot; <span>Phase 5 Architecture</span>
+      </div>
+      <h1 class="hero-title">
+        Fixing Cities Faster with <span>AI-Powered</span> Civic Action
+      </h1>
+      <p class="hero-desc">
+        URBANFIX empowers citizens to report civic infrastructure issues effortlessly, while municipal authorities leverage AI-driven classification, priority dispatch, and spatial hotspot analysis to resolve them with verified accountability.
+      </p>
+      <div class="hero-actions">
+        <a href="{{ url_for('submit.complaint_form') }}" class="btn-hero-primary">
+          📝 Report a Problem
+        </a>
+        <a href="{{ url_for('submit.track') }}" class="btn-hero-secondary">
+          🔍 Track Complaint
+        </a>
+      </div>
+    </div>
 
-  <section class="features">
-    <div class="feature-card">
-      <svg class="icon" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM11 6h2v6h-2V6zm0 8h2v2h-2v-2z"/></svg>
-      <h3>AI Categorisation</h3>
-      <p>Automatically classifies complaints into city‑defined categories.</p>
+    <!-- Live Preview Floating Card -->
+    <div class="hero-card-preview">
+      <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:#74b9ff;font-weight:700;margin-bottom:.75rem;">
+        ⚡ Live AI Civic Pipeline
+      </div>
+      <div class="preview-item">
+        <div class="preview-icon" style="background:rgba(56,239,125,0.2);color:#38ef7d;">🤖</div>
+        <div>
+          <div style="font-weight:700;font-size:.9rem;color:#fff;">NLP Categorisation &amp; Scoring</div>
+          <div style="font-size:.78rem;color:#b2bec3;">Instant routing to public works &amp; utilities</div>
+        </div>
+      </div>
+      <div class="preview-item">
+        <div class="preview-icon" style="background:rgba(52,152,219,0.2);color:#3498db;">📍</div>
+        <div>
+          <div style="font-weight:700;font-size:.9rem;color:#fff;">Spatial Hotspot Clustering</div>
+          <div style="font-size:.78rem;color:#b2bec3;">Detects recurring road &amp; water hazards</div>
+        </div>
+      </div>
+      <div class="preview-item">
+        <div class="preview-icon" style="background:rgba(230,126,34,0.2);color:#e67e22;">✅</div>
+        <div>
+          <div style="font-weight:700;font-size:.9rem;color:#fff;">Photo Resolution Proof</div>
+          <div style="font-size:.78rem;color:#b2bec3;">Field officers upload verified work completion photos</div>
+        </div>
+      </div>
+      <div style="margin-top:1.25rem;text-align:right;">
+        <a href="{{ url_for('admin.dashboard') }}" style="color:#74b9ff;font-size:.82rem;font-weight:600;text-decoration:none;">
+          Explore Admin Console &rarr;
+        </a>
+      </div>
     </div>
-    <div class="feature-card">
-      <svg class="icon" viewBox="0 0 24 24"><path d="M5 3v18h14V3H5zm12 16H7V5h10v14z"/></svg>
-      <h3>Priority Scoring</h3>
-      <p>Predicts urgency so critical issues are highlighted first.</p>
+  </div>
+</section>
+
+<!-- ── LIVE PLATFORM STATISTICS ────────────────────────────────────── -->
+<section class="stats-ribbon">
+  <div class="stats-ribbon-grid">
+    <div>
+      <div class="ribbon-stat-value">{{ stats.total }}</div>
+      <div class="ribbon-stat-label">Total Issues Logged</div>
     </div>
-    <div class="feature-card">
-      <svg class="icon" viewBox="0 0 24 24"><path d="M12 12l8-5V5l-8 5-8-5v2l8 5zM4 12v6h16v-6l-8 5-8-5z"/></svg>
-      <h3>Duplicate Detection</h3>
-      <p>Finds similar reports to avoid redundant work.</p>
+    <div>
+      <div class="ribbon-stat-value" style="color:#27ae60;">{{ stats.resolved }}</div>
+      <div class="ribbon-stat-label">Verified Resolved</div>
     </div>
-    <div class="feature-card">
-      <svg class="icon" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 8h14v-2H7v2zm0-4h14v-2H7v2zm0-6v2h14V7H7z"/></svg>
-      <h3>Hotspot Analysis</h3>
-      <p>Visualise recurring problems on an interactive map.</p>
+    <div>
+      <div class="ribbon-stat-value" style="color:#e67e22;">{{ stats.pending + stats.in_progress }}</div>
+      <div class="ribbon-stat-label">In Active Pipeline</div>
     </div>
-  </section>
-</div>
+    <div>
+      <div class="ribbon-stat-value" style="color:#2980b9;">{{ stats.active_categories }}</div>
+      <div class="ribbon-stat-label">Civic Categories</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── ABOUT URBANFIX ──────────────────────────────────────────────── -->
+<section class="landing-section" id="about">
+  <div class="section-header">
+    <span class="section-tag">About URBANFIX</span>
+    <h2 class="section-title">Bridging Citizens &amp; City Authorities</h2>
+    <p class="section-subtitle">
+      Traditional municipal complaint portals are slow, opaque, and prone to duplicate backlogs. URBANFIX modernizes public problem management by embedding intelligence at every stage.
+    </p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:2rem;align-items:center;">
+    <div class="card" style="padding:2rem;">
+      <h3 style="color:var(--brand-navy);margin-top:0;">Why URBANFIX Exists</h3>
+      <p style="color:var(--text);line-height:1.6;font-size:.95rem;">
+        When potholes, overflowing garbage bins, or broken streetlights go unaddressed, communities suffer. URBANFIX ensures that every citizen report is automatically categorized, assigned a priority score based on public safety impact, and tracked until completion with photo proof.
+      </p>
+      <div style="margin-top:1.25rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+        <span class="badge badge-resolved">✓ 100% Parameterized Security</span>
+        <span class="badge badge-submitted">✓ Real-time Notifications</span>
+        <span class="badge badge-assigned">✓ Zero-API Cloudless AI</span>
+      </div>
+    </div>
+
+    <div class="card" style="padding:2rem;background:#fbfcfe;">
+      <h3 style="color:var(--brand-navy);margin-top:0;">How AI Enhances Resolution</h3>
+      <p style="color:var(--text);line-height:1.6;font-size:.95rem;">
+        City administrators often handle hundreds of reports daily. URBANFIX AI automatically analyzes description clarity, identifies duplicate reports with cosine similarity, flags low-confidence citizen choices for review, and predicts spatial cluster zones.
+      </p>
+      <div style="margin-top:1.25rem;">
+        <a href="{{ url_for('admin.action_brief') }}" class="btn btn-secondary" style="font-size:.85rem;">
+          🤖 Read AI Action Brief Sample
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FEATURES SECTION ────────────────────────────────────────────── -->
+<section class="landing-section" id="features" style="background:#f8fafc;max-width:100%;border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+  <div style="max-width:1100px;margin:0 auto;">
+    <div class="section-header">
+      <span class="section-tag">Core Capabilities</span>
+      <h2 class="section-title">Nine Intelligent Civic Technologies</h2>
+      <p class="section-subtitle">
+        Everything required to transform civic complaints into verified municipal action.
+      </p>
+    </div>
+
+    <div class="features-grid">
+      <!-- 1 -->
+      <div class="feat-card">
+        <div class="feat-icon-wrap">🤖</div>
+        <div>
+          <h3 class="feat-title">AI Complaint Classification</h3>
+          <p class="feat-desc">Two-stage hybrid NLP classifies citizen reports into municipal categories with confidence scoring and manual review flags.</p>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:#fef2f2;">🚨</div>
+        <div>
+          <h3 class="feat-title">Smart Priority Detection</h3>
+          <p class="feat-desc">Calculates urgency scores from 0 to 100 evaluating danger to life, infrastructure disruption, duration, and duplicate count.</p>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:#fffbeb;">🔁</div>
+        <div>
+          <h3 class="feat-title">Duplicate Complaint Detection</h3>
+          <p class="feat-desc">TF-IDF cosine similarity links repeated reports for the same incident, preventing redundant inspections.</p>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:#f0fdf4;">🔍</div>
+        <div>
+          <h3 class="feat-title">Citizen Complaint Tracking</h3>
+          <p class="feat-desc">Transparent chronological status timelines allow citizens to monitor progress from submission to resolution.</p>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:#f0fdf4;">📷</div>
+        <div>
+          <h3 class="feat-title">Resolution Updates &amp; Photos</h3>
+          <p class="feat-desc">Authorized administrators upload verified completion photographs and resolution notes visible to citizens upon closure.</p>
+        </div>
+      </div>
+
+      <!-- 6 -->
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:#eff6ff;">🗺</div>
+        <div>
+          <h3 class="feat-title">Interactive City Map</h3>
+          <p class="feat-desc">Leaflet &amp; OpenStreetMap spatial integration maps GPS-tagged complaints with status and urgency color coding.</p>
+        </div>
+      </div>
+
+      <!-- 7 -->
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:#fff1f2;">🔴</div>
+        <div>
+          <h3 class="feat-title">Hotspot Cluster Detection</h3>
+          <p class="feat-desc">Haversine density clustering detects geographic zones with recurring issues within 0.5 km radius.</p>
+        </div>
+      </div>
+
+      <!-- 8 -->
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:#f5f3ff;">📈</div>
+        <div>
+          <h3 class="feat-title">AI-Powered Civic Insights</h3>
+          <p class="feat-desc">Predictive insights engine flags rising problem categories, seasonal vulnerabilities, and long-unresolved bottlenecks.</p>
+        </div>
+      </div>
+
+      <!-- 9 -->
+      <div class="feat-card">
+        <div class="feat-icon-wrap" style="background:#ecfdf5;">🔔</div>
+        <div>
+          <h3 class="feat-title">In-App Notifications</h3>
+          <p class="feat-desc">Automated persistent status alerts notify citizens immediately when their complaint moves to another remediation stage.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── HOW IT WORKS ────────────────────────────────────────────────── -->
+<section class="landing-section" id="how-it-works">
+  <div class="section-header">
+    <span class="section-tag">The Workflow</span>
+    <h2 class="section-title">How URBANFIX Operates</h2>
+    <p class="section-subtitle">
+      A seamless 6-step lifecycle from citizen reporting to verified problem resolution.
+    </p>
+  </div>
+
+  <div class="workflow-grid">
+    <div class="step-card">
+      <div class="step-num">1</div>
+      <h4 class="step-title">Report Issue</h4>
+      <p class="step-desc">Citizen enters details, landmark address, optional GPS, and photo evidence.</p>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">2</div>
+      <h4 class="step-title">AI Categorisation</h4>
+      <p class="step-desc">NLP engine validates category, assesses clarity, and identifies duplicates.</p>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">3</div>
+      <h4 class="step-title">Priority Score</h4>
+      <p class="step-desc">Urgency score (0-100) assigned based on life risk and public safety cues.</p>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">4</div>
+      <h4 class="step-title">Admin Dispatch</h4>
+      <p class="step-desc">Department officials review recommended departments and assign field duty officers.</p>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">5</div>
+      <h4 class="step-title">Live Tracking</h4>
+      <p class="step-desc">Citizens receive automated notifications as status shifts to In Progress.</p>
+    </div>
+
+    <div class="step-card">
+      <div class="step-num">6</div>
+      <h4 class="step-title">Verified Resolution</h4>
+      <p class="step-desc">Work completed, completion photo uploaded, and permanent record archived.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── CITIZEN & ADMIN BENEFITS ────────────────────────────────────── -->
+<section class="landing-section" id="benefits" style="background:#fbfcfe;max-width:100%;border-top:1px solid var(--border);">
+  <div style="max-width:1100px;margin:0 auto;">
+    <div class="section-header">
+      <span class="section-tag">Mutual Value</span>
+      <h2 class="section-title">Designed for Both Citizens &amp; Administrators</h2>
+      <p class="section-subtitle">
+        Empowering residents with transparent tracking while equipping municipal leadership with data-driven decision tools.
+      </p>
+    </div>
+
+    <div class="benefits-grid">
+      <div class="benefit-card">
+        <h3 style="color:var(--brand-navy);margin-top:0;display:flex;align-items:center;gap:.5rem;">
+          <span>👥</span> For Citizens &amp; Communities
+        </h3>
+        <ul class="benefit-list">
+          <li><span>✅</span> <strong>Frictionless Reporting:</strong> Easy 2-minute submission with browser GPS assistance.</li>
+          <li><span>✅</span> <strong>Real-Time Tracking:</strong> Dedicated reference ID with chronological milestone timeline.</li>
+          <li><span>✅</span> <strong>Accountable Closure:</strong> View official resolution notes and completion photographs.</li>
+          <li><span>✅</span> <strong>Notification Alerts:</strong> Stay informed whenever municipal workers update your case.</li>
+          <li><span>✅</span> <strong>Privacy Protected:</strong> Public tracking excludes sensitive internal notes and private contact details.</li>
+        </ul>
+      </div>
+
+      <div class="benefit-card">
+        <h3 style="color:var(--brand-navy);margin-top:0;display:flex;align-items:center;gap:.5rem;">
+          <span>🏛</span> For Municipal Administrators
+        </h3>
+        <ul class="benefit-list">
+          <li><span>✅</span> <strong>Automated Triage:</strong> Immediate identification of critical safety hazards.</li>
+          <li><span>✅</span> <strong>Department Recommendations:</strong> AI suggests jurisdiction &amp; duty officers automatically.</li>
+          <li><span>✅</span> <strong>Spatial Hotspot Mapping:</strong> Identify systemic infrastructure failure zones across the city.</li>
+          <li><span>✅</span> <strong>Executive Briefs:</strong> Instant summary briefs generated on demand with zero external cloud dependencies.</li>
+          <li><span>✅</span> <strong>Exportable Audit Reports:</strong> CSV report generation with formula-injection security filters.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CALL TO ACTION ──────────────────────────────────────────────── -->
+<section class="landing-section" style="padding-top:2rem;padding-bottom:2rem;">
+  <div class="cta-banner">
+    <h2>Make Your City Better Today</h2>
+    <p>
+      Report an issue in your neighborhood or check the status of an existing complaint. Together, we build safer and cleaner communities.
+    </p>
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+      <a href="{{ url_for('submit.complaint_form') }}" class="btn-hero-primary" style="background:#fff;color:#1b2a4a;box-shadow:none;">
+        📝 Report an Issue Now
+      </a>
+      <a href="{{ url_for('submit.track') }}" class="btn-hero-secondary" style="border-color:#fff;">
+        🔍 Track Existing Issue
+      </a>
+    </div>
+  </div>
+</section>
+
 {% endblock %}

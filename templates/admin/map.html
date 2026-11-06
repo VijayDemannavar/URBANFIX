@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Interactive Complaint Map – URBANFIX{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="anonymous">
+  <style>
+    #admin-map {
+      width: 100%;
+      height: 600px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: #e8f0fe;
+    }
+    .map-controls {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 1rem;
+      background: var(--surface);
+      padding: .75rem 1rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      font-size: .8rem;
+    }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <!-- Breadcrumb -->
+  <nav aria-label="Breadcrumb" style="margin-bottom:1rem;font-size:.85rem;color:var(--text-muted);">
+    <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+    &rsaquo;
+    <span>Interactive Map</span>
+  </nav>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="flex justify-between items-center" style="flex-wrap:wrap;gap:1rem;">
+      <div>
+        <h1>🗺 Interactive Complaint Map</h1>
+        <p>Live spatial view of municipal complaints with GPS coordinates and AI-detected hotspot zones.</p>
+      </div>
+      <div class="flex gap-1" style="flex-wrap:wrap;align-items:center;">
+        <span class="badge" style="background:var(--surface);color:var(--text-muted);border:1px solid var(--border);padding:.35rem .85rem;">
+          📍 {{ total_geo }} Geo-located Reports
+        </span>
+        <span class="badge" style="background:var(--brand-light);color:var(--brand-blue);border:1px solid var(--border);padding:.35rem .85rem;">
+          🔴 {{ hotspots | length }} Hotspots
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend & Filter Controls -->
+  <div class="map-controls">
+    <span style="font-weight:600;font-size:.85rem;">Legend:</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#e74c3c;"></span> Critical / Urgent</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#f39c12;"></span> In Progress</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#27ae60;"></span> Resolved</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#3498db;"></span> Submitted / Review</span>
+    <span class="legend-item"><span class="legend-dot" style="background:rgba(231,76,60,0.25);border:1px solid #e74c3c;"></span> Hotspot Cluster</span>
+  </div>
+
+  {% if total_geo == 0 %}
+    <div class="card" style="text-align:center;padding:3rem 1rem;">
+      <div style="font-size:3rem;margin-bottom:.75rem;">🗺</div>
+      <h3>No Geo-located Complaints Available</h3>
+      <p class="text-muted">Complaints submitted without latitude and longitude coordinates cannot be displayed on the spatial map.</p>
+      <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary" style="margin-top:.75rem;">Back to Dashboard</a>
+    </div>
+  {% else %}
+    <div class="card" style="margin-bottom:1.5rem;padding:0;overflow:hidden;">
+      <div id="admin-map" aria-label="Interactive City Problem Map"></div>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if total_geo > 0 %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN2GqaY="
+          crossorigin="anonymous"></script>
+
+  <script>
+    (function () {
+      var complaints = {{ complaints_json | tojson }};
+      var hotspots = {{ hotspots_json | tojson }};
+
+      if (!complaints || complaints.length === 0) return;
+
+      // Calculate center point
+      var sumLat = 0, sumLon = 0, validCount = 0;
+      complaints.forEach(function (c) {
+        if (c.latitude && c.longitude && !isNaN(c.latitude) && !isNaN(c.longitude)) {
+          sumLat += parseFloat(c.latitude);
+          sumLon += parseFloat(c.longitude);
+          validCount++;
+        }
+      });
+
+      var centerLat = validCount > 0 ? (sumLat / validCount) : 12.9716;
+      var centerLon = validCount > 0 ? (sumLon / validCount) : 77.5946;
+
+      var map = L.map("admin-map").setView([centerLat, centerLon], 13);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      // Render Hotspot Circles
+      hotspots.forEach(function (h, idx) {
+        var radius = Math.max(300, h.count * 100);
+        var color = h.critical_count > 0 ? "#e74c3c" : (h.high_count > 0 ? "#e67e22" : "#3498db");
+
+        L.circle([h.center_lat, h.center_lon], {
+          radius: radius,
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.15,
+          weight: 2,
+          dashArray: "4, 6"
+        }).addTo(map).bindPopup(
+          "<div style='min-width:180px;font-size:.85rem;'>" +
+          "<strong>🔴 Hotspot Zone #" + (idx + 1) + "</strong><br>" +
+          "<b>Category:</b> " + h.dominant_category + "<br>" +
+          "<b>Reports:</b> " + h.count + "<br>" +
+          "<b>Avg Priority:</b> " + h.avg_priority_score.toFixed(1) +
+          "</div>"
+        );
+      });
+
+      // Render Complaint Markers
+      complaints.forEach(function (c) {
+        if (!c.latitude || !c.longitude || isNaN(c.latitude) || isNaN(c.longitude)) return;
+
+        var color = "#3498db"; // default blue
+        if (c.priority_level === "Critical") color = "#e74c3c";
+        else if (c.status === "In Progress" || c.status === "Assigned") color = "#f39c12";
+        else if (c.status === "Resolved" || c.status === "Closed") color = "#27ae60";
+
+        var marker = L.circleMarker([c.latitude, c.longitude], {
+          radius: 7,
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.85,
+          weight: 2
+        }).addTo(map);
+
+        var safeId = encodeURIComponent(c.complaint_id);
+        var popupContent =
+          "<div style='min-width:220px;font-size:.85rem;'>" +
+          "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;'>" +
+          "  <strong style='font-family:monospace;'>" + c.complaint_id + "</strong>" +
+          "  <span style='background:" + color + ";color:#fff;padding:1px 6px;border-radius:4px;font-size:.7rem;'>" + c.status + "</span>" +
+          "</div>" +
+          "<div style='font-weight:600;margin-bottom:4px;'>" + c.title + "</div>" +
+          "<div style='color:#666;font-size:.8rem;margin-bottom:4px;'>" + c.category + " &middot; " + c.priority_level + " Priority</div>" +
+          (c.address ? "<div style='color:#555;font-size:.78rem;margin-bottom:6px;'>📍 " + c.address + "</div>" : "") +
+          "<a href='/admin/complaint/" + safeId + "' style='display:inline-block;margin-top:4px;font-weight:600;color:#2980b9;'>View Full Details &rarr;</a>" +
+          "</div>";
+
+        marker.bindPopup(popupContent);
+      });
+
+    })();
+  </script>
+{% endif %}
+{% endblock %}

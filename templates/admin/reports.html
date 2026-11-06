@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Complaint Reports &amp; Data Export – URBANFIX{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <!-- Breadcrumb -->
+  <nav aria-label="Breadcrumb" style="margin-bottom:1rem;font-size:.85rem;color:var(--text-muted);">
+    <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+    &rsaquo;
+    <span>Reports &amp; Data Export</span>
+  </nav>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="flex justify-between items-center" style="flex-wrap:wrap;gap:1rem;">
+      <div>
+        <h1>📋 Complaint Reports &amp; Data Export</h1>
+        <p>Custom filtered reporting, departmental audits, and secure CSV data export.</p>
+      </div>
+      <div>
+        <a href="{{ url_for('admin.reports_export_csv', category=active_category, status=active_status, priority=active_priority, department_id=active_dept, start_date=active_start, end_date=active_end) }}"
+           class="btn btn-primary">
+          📥 Export Filtered CSV
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <form method="GET" action="{{ url_for('admin.reports_view') }}">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:1rem;margin-bottom:1rem;">
+        
+        <div>
+          <label for="filter-category" style="font-size:.82rem;font-weight:600;">Category</label>
+          <select id="filter-category" name="category" style="width:100%;font-size:.85rem;padding:.4rem;">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+              <option value="{{ cat }}" {{ 'selected' if active_category == cat else '' }}>{{ cat }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="filter-status" style="font-size:.82rem;font-weight:600;">Status</label>
+          <select id="filter-status" name="status" style="width:100%;font-size:.85rem;padding:.4rem;">
+            <option value="">All Statuses</option>
+            {% for st in statuses %}
+              <option value="{{ st }}" {{ 'selected' if active_status == st else '' }}>{{ st }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="filter-priority" style="font-size:.82rem;font-weight:600;">Priority</label>
+          <select id="filter-priority" name="priority" style="width:100%;font-size:.85rem;padding:.4rem;">
+            <option value="">All Priorities</option>
+            {% for p in priority_levels %}
+              <option value="{{ p }}" {{ 'selected' if active_priority == p else '' }}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="filter-dept" style="font-size:.82rem;font-weight:600;">Department</label>
+          <select id="filter-dept" name="department_id" style="width:100%;font-size:.85rem;padding:.4rem;">
+            <option value="">All Departments</option>
+            {% for d in departments %}
+              <option value="{{ d.id }}" {{ 'selected' if active_dept == d.id else '' }}>{{ d.department_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="filter-start" style="font-size:.82rem;font-weight:600;">From Date</label>
+          <input type="date" id="filter-start" name="start_date" value="{{ active_start }}" style="width:100%;font-size:.85rem;padding:.35rem;">
+        </div>
+
+        <div>
+          <label for="filter-end" style="font-size:.82rem;font-weight:600;">To Date</label>
+          <input type="date" id="filter-end" name="end_date" value="{{ active_end }}" style="width:100%;font-size:.85rem;padding:.35rem;">
+        </div>
+
+      </div>
+
+      <div style="display:flex;gap:.75rem;justify-content:flex-end;">
+        <a href="{{ url_for('admin.reports_view') }}" class="btn btn-secondary" style="font-size:.85rem;">Clear Filters</a>
+        <button type="submit" class="btn btn-primary" style="font-size:.85rem;">🔍 Generate Report</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Summary Cards for Current Report -->
+  <div class="stats-grid" style="margin-bottom:1.5rem;">
+    <div class="stat-card">
+      <div class="stat-icon blue">📄</div>
+      <div>
+        <div class="stat-value">{{ total_count }}</div>
+        <div class="stat-label">Matching Reports</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">✅</div>
+      <div>
+        <div class="stat-value">{{ resolved_count }}</div>
+        <div class="stat-label">Resolved</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon red">🚨</div>
+      <div>
+        <div class="stat-value">{{ critical_count }}</div>
+        <div class="stat-label">Critical Priority</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Table -->
+  {% if complaints %}
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div style="overflow-x:auto;">
+        <table class="data-table" style="width:100%;margin:0;font-size:.85rem;">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Department</th>
+              <th>Submitted</th>
+              <th>Resolved</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in complaints %}
+              <tr>
+                <td class="td-id"><a href="{{ url_for('admin.complaint_detail', complaint_id=c.complaint_id) }}">{{ c.complaint_id }}</a></td>
+                <td class="td-title">{{ c.title | truncate(45) }}</td>
+                <td>{{ c.category }}</td>
+                <td><span class="badge badge-{{ c.status | lower | replace(' ', '-') }}">{{ c.status }}</span></td>
+                <td><span class="badge badge-{{ c.priority_level | lower }}">{{ c.priority_level }}</span></td>
+                <td>{{ c.department_name }}</td>
+                <td>{{ c.created_at[:10] }}</td>
+                <td>{{ c.resolved_at[:10] if c.resolved_at else '—' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <div class="card empty-state" style="text-align:center;padding:3rem 1rem;">
+      <div style="font-size:3rem;margin-bottom:.75rem;">📭</div>
+      <h3>No Complaints Matched Your Filter Criteria</h3>
+      <p class="text-muted">Try broadening the date range or clearing category and status filters.</p>
+      <a href="{{ url_for('admin.reports_view') }}" class="btn btn-secondary" style="margin-top:.75rem;">Reset Filters</a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

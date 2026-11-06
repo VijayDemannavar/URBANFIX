@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}Analytics &amp; Civic Insights – URBANFIX{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <!-- Breadcrumb -->
+  <nav aria-label="Breadcrumb" style="margin-bottom:1rem;font-size:.85rem;color:var(--text-muted);">
+    <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+    &rsaquo;
+    <span>Analytics &amp; Insights</span>
+  </nav>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="flex justify-between items-center" style="flex-wrap:wrap;gap:1rem;">
+      <div>
+        <h1>📈 Civic Analytics &amp; Predictive Insights</h1>
+        <p>Operational turnaround metrics, category distribution, departmental load, and predictive foresight.</p>
+      </div>
+      <div class="flex gap-1">
+        <a href="{{ url_for('admin.reports_view') }}" class="btn btn-secondary">📋 Export Reports</a>
+        <a href="{{ url_for('admin.map_view') }}" class="btn btn-primary">🗺 View Map</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Key Metrics Row -->
+  <div class="stats-grid" style="margin-bottom:1.75rem;">
+    <div class="stat-card">
+      <div class="stat-icon blue">📊</div>
+      <div>
+        <div class="stat-value">{{ metrics.total }}</div>
+        <div class="stat-label">Total Volume</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">🎯</div>
+      <div>
+        <div class="stat-value">{{ metrics.resolution_rate }}%</div>
+        <div class="stat-label">Resolution Rate</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon purple">⏱️</div>
+      <div>
+        <div class="stat-value">{{ metrics.avg_resolution_days }} <span style="font-size:1rem;font-weight:normal;">days</span></div>
+        <div class="stat-label">Avg Turnaround</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon red">🚨</div>
+      <div>
+        <div class="stat-value">{{ metrics.critical }}</div>
+        <div class="stat-label">Critical Issues</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">⚙️</div>
+      <div>
+        <div class="stat-value">{{ metrics.in_progress + metrics.assigned }}</div>
+        <div class="stat-label">In Remediation</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Predictive Civic Insights (Phase 5.5) ───────────────────────── -->
+  <div class="card" style="margin-bottom:1.75rem;">
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
+      <span style="font-size:1.4rem;">🤖</span>
+      <h2 class="card-title" style="margin:0;">Predictive Civic Foresight &amp; Early Signals</h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:1rem;">
+      {% for ins in insights %}
+        <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem;background:#fafbfc;display:flex;flex-direction:column;justify-content:space-between;">
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.5rem;">
+              <strong style="font-size:.95rem;color:var(--text);">{{ ins.title }}</strong>
+              <span class="badge badge-{{ 'critical' if ins.urgency_level == 'Critical' else ('high' if ins.urgency_level == 'High' else 'low') }}" style="font-size:.7rem;">
+                {{ ins.urgency_level }}
+              </span>
+            </div>
+            <p style="font-size:.85rem;color:var(--text);margin:0 0 .5rem 0;line-height:1.4;">
+              {{ ins.description }}
+            </p>
+            <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.5rem;">
+              <strong>Evidence:</strong> {{ ins.evidence }}
+            </div>
+          </div>
+          <div style="border-top:1px dashed var(--border);padding-top:.5rem;margin-top:.5rem;">
+            <div style="font-size:.75rem;color:var(--brand-accent);font-weight:600;margin-bottom:.2rem;">
+              Recommended Action:
+            </div>
+            <div style="font-size:.8rem;color:var(--text);">{{ ins.suggested_action }}</div>
+            <div style="font-size:.7rem;color:var(--text-muted);margin-top:.35rem;font-style:italic;">
+              Signal confidence: {{ ins.confidence_label }}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── Two Column: Category Breakdown & Department Load ───────────── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.75rem;" class="analytics-grid">
+
+    <!-- Category Distribution -->
+    <div class="card">
+      <h2 class="card-title">📊 Category Distribution</h2>
+      {% if metrics.category_distribution %}
+        <div style="display:flex;flex-direction:column;gap:.75rem;margin-top:.75rem;">
+          {% for item in metrics.category_distribution %}
+            {% set pct = ((item.count / metrics.total) * 100) | round(1) if metrics.total > 0 else 0 %}
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:.25rem;">
+                <span>{{ item.category }}</span>
+                <strong>{{ item.count }} ({{ pct }}%)</strong>
+              </div>
+              <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+                <div style="height:100%;width:{{ pct }}%;background:var(--brand-accent);border-radius:4px;"></div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted text-sm">No complaints recorded yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Department Workload -->
+    <div class="card">
+      <h2 class="card-title">🏢 Department Workload &amp; Backlog</h2>
+      {% if metrics.department_distribution %}
+        <table class="data-table" style="width:100%;font-size:.85rem;margin-top:.75rem;">
+          <thead>
+            <tr>
+              <th>Department</th>
+              <th>Total Assigned</th>
+              <th>Unresolved Backlog</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in metrics.department_distribution %}
+              <tr>
+                <td><strong>{{ d.department }}</strong></td>
+                <td>{{ d.total }}</td>
+                <td>
+                  {% if d.unresolved > 0 %}
+                    <span style="color:#d35400;font-weight:600;">{{ d.unresolved }}</span>
+                  {% else %}
+                    <span style="color:#27ae60;">0</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-muted text-sm">No department data available.</p>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- ── Critical Urgency Attention Table (Phase 5.8) ────────────────── -->
+  <div class="card" style="margin-bottom:1.75rem;">
+    <h2 class="card-title" style="color:#c0392b;">🚨 Critical Urgency Attention Queue</h2>
+    {% if metrics.critical_urgent %}
+      <div style="overflow-x:auto;">
+        <table class="data-table" style="width:100%;font-size:.85rem;">
+          <thead>
+            <tr>
+              <th>Complaint ID</th>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Priority Score</th>
+              <th>Status</th>
+              <th>Submitted</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in metrics.critical_urgent %}
+              <tr>
+                <td class="td-id">{{ c.complaint_id }}</td>
+                <td>{{ c.title | truncate(50) }}</td>
+                <td>{{ c.category }}</td>
+                <td><span class="badge badge-critical">{{ "%.0f"|format(c.priority_score) }} / 100</span></td>
+                <td><span class="badge badge-{{ c.status | lower | replace(' ', '-') }}">{{ c.status }}</span></td>
+                <td>{{ c.created_at[:10] }}</td>
+                <td><a href="{{ url_for('admin.complaint_detail', complaint_id=c.complaint_id) }}" class="action-link">Review &rarr;</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-muted text-sm" style="margin-top:.5rem;">✓ No unresolved critical priority complaints at this time.</p>
+    {% endif %}
+  </div>
+
+  <!-- ── Stale / Oldest Unresolved Complaints ────────────────────────── -->
+  <div class="card">
+    <h2 class="card-title">⏳ Oldest Pending Complaints Needing Resolution</h2>
+    {% if metrics.unresolved_long %}
+      <div style="overflow-x:auto;">
+        <table class="data-table" style="width:100%;font-size:.85rem;">
+          <thead>
+            <tr>
+              <th>Complaint ID</th>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Submitted On</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in metrics.unresolved_long %}
+              <tr>
+                <td class="td-id">{{ c.complaint_id }}</td>
+                <td>{{ c.title | truncate(50) }}</td>
+                <td>{{ c.category }}</td>
+                <td><span class="badge badge-{{ c.status | lower | replace(' ', '-') }}">{{ c.status }}</span></td>
+                <td><span class="badge badge-{{ c.priority_level | lower }}">{{ c.priority_level }}</span></td>
+                <td>{{ c.created_at[:16] }}</td>
+                <td><a href="{{ url_for('admin.complaint_detail', complaint_id=c.complaint_id) }}" class="action-link">Open &rarr;</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-muted text-sm" style="margin-top:.5rem;">All reported complaints have been resolved.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<style>
+  @media (max-width: 768px) {
+    .analytics-grid { grid-template-columns: 1fr !important; }
+  }
+</style>
+{% endblock %}

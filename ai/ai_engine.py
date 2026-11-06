@@ -30,10 +30,12 @@ class AIEngine:
         self._classifier = None
         self._detector   = None
         self._priority   = None
+        self._recommender = None
+        self._clarity    = None
         self._load_models()
 
     def _load_models(self) -> None:
-        """Load classifier, detector, and priority engine — failures are isolated."""
+        """Load classifier, detector, priority engine, recommender, clarity analyzer."""
         try:
             from ai.category_classifier import get_classifier
             self._classifier = get_classifier()
@@ -52,11 +54,24 @@ class AIEngine:
         except Exception as exc:
             logger.error("Failed to load PriorityEngine: %s", exc)
 
+        try:
+            from ai.department_recommender import get_recommender
+            self._recommender = get_recommender()
+        except Exception as exc:
+            logger.error("Failed to load DepartmentRecommender: %s", exc)
+
+        try:
+            from ai.clarity_analyzer import get_clarity_analyzer
+            self._clarity = get_clarity_analyzer()
+        except Exception as exc:
+            logger.error("Failed to load ClarityAnalyzer: %s", exc)
+
         logger.info(
-            "AIEngine ready (classifier=%s, detector=%s, priority=%s).",
+            "AIEngine ready (classifier=%s, detector=%s, priority=%s, recommender=%s).",
             "ok" if self._classifier else "FAILED",
             "ok" if self._detector   else "FAILED",
             "ok" if self._priority   else "FAILED",
+            "ok" if self._recommender else "FAILED",
         )
 
     # ── Public API ─────────────────────────────────────────────────────────────
@@ -97,6 +112,11 @@ class AIEngine:
             "priority_score":   0,
             "priority_level":   "Low",
             "priority_reason":  "",
+            # Department recommendation defaults (Phase 5)
+            "ai_suggested_dept": "",
+            "ai_dept_rationale": "",
+            # Clarity feedback defaults (Phase 5)
+            "ai_feedback":       "",
         }
 
         # ── Step 1: Categorisation ────────────────────────────────────
@@ -155,6 +175,27 @@ class AIEngine:
                 )
             except Exception as exc:
                 logger.error("Priority scoring failed for %s: %s", complaint_id, exc)
+
+        # ── Step 4: Department Recommendation (Phase 5) ───────────────
+        if self._recommender is not None:
+            try:
+                dept_rec = self._recommender.recommend(
+                    category=result["ai_category"],
+                    title=title,
+                    description=description,
+                )
+                result["ai_suggested_dept"] = dept_rec.recommended_department
+                result["ai_dept_rationale"] = dept_rec.rationale
+            except Exception as exc:
+                logger.error("Department recommendation failed for %s: %s", complaint_id, exc)
+
+        # ── Step 5: Clarity Analysis (Phase 5) ─────────────────────────
+        if self._clarity is not None:
+            try:
+                clarity = self._clarity.analyze(description)
+                result["ai_feedback"] = " ".join(clarity.suggestions)
+            except Exception as exc:
+                logger.error("Clarity analysis failed for %s: %s", complaint_id, exc)
 
         return result
 

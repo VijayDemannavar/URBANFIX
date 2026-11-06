@@ -16,13 +16,17 @@ Authentication (Phase 4D):
 """
 
 import base64
+import csv
 import hmac
+import io
 import logging
+import os
+
 import sqlite3
 
 from flask import (
     Blueprint, render_template, request, abort,
-    redirect, url_for, flash, current_app,
+    redirect, url_for, flash, current_app, Response,
 )
 from ai.hotspot_detector import get_hotspot_detector
 
@@ -30,6 +34,7 @@ import database as db
 from config import (
     COMPLAINT_CATEGORIES, COMPLAINT_STATUSES, PRIORITY_LEVELS,
     ADMIN_AUTH_MODE, ADMIN_PASSWORD, DASHBOARD_PAGE_SIZE,
+    UPLOAD_DIR,
 )
 from routes.csrf import verify_csrf
 
@@ -267,6 +272,30 @@ def complaint_detail(complaint_id: str):
     for dept in all_departments:
         all_officers.extend(db.get_officers_by_department(dept["id"]))
 
+    # Phase 5: Intelligent Department Recommendation & Clarity Analysis
+    dept_recommendation = None
+    clarity_feedback = None
+    try:
+        from ai.department_recommender import get_recommender
+        recommender = get_recommender()
+        dept_recommendation = recommender.recommend(
+            category=complaint["category"],
+            title=complaint["title"],
+            description=complaint["description"],
+            departments=[dict(d) for d in all_departments],
+        )
+    except Exception as exc:
+        logger.warning("Could not calculate dept recommendation: %s", exc)
+
+    try:
+        from ai.clarity_analyzer import get_clarity_analyzer
+        clarity_feedback = get_clarity_analyzer().analyze(
+            description=complaint["description"],
+            address=complaint["address"],
+        )
+    except Exception as exc:
+        logger.warning("Could not calculate clarity feedback: %s", exc)
+
     return render_template(
         "admin/detail.html",
         complaint=complaint,
@@ -275,6 +304,8 @@ def complaint_detail(complaint_id: str):
         status_history=status_history,
         action_notes=action_notes,
         duplicate_links=duplicate_links,
+        dept_recommendation=dept_recommendation,
+        clarity_feedback=clarity_feedback,
         # Write-form data
         statuses=COMPLAINT_STATUSES,
         departments=all_departments,
@@ -369,6 +400,40 @@ def complaint_update(complaint_id: str):
             officer_id=officer_id,
         )
 
+    # ── Resolution handling ────────────────────────────────────────────────
+    resolution_message = request.form.get("resolution_message", "").strip() or None
+    resolution_image_path = None
+    resolution_image = request.files.get("resolution_image")
+    if resolution_image and resolution_image.filename:
+        try:
+            # Re‑use the same image‑validation helper used for citizen uploads
+            from routes.submit import _save_image
+            resolution_image_path = _save_image(resolution_image)
+        except ValueError as exc:
+            errors.append(str(exc))
+
+    # If any errors appeared after processing resolution fields, abort before DB write
+    if errors:
+        # Clean up newly saved image if present
+        if resolution_image_path:
+            try:
+                os.remove(os.path.join(UPLOAD_DIR, resolution_image_path))
+            except Exception:
+                pass
+        flash(" ".join(errors), "error")
+        return redirect(url_for("admin.complaint_detail", complaint_id=complaint_id)), 422
+
+    if resolution_message is not None or resolution_image_path is not None:
+        # Update only the columns that were supplied (keep existing values otherwise)
+        with db.db_cursor() as (conn, cur):
+            cur.execute(
+                """UPDATE complaints
+                   SET resolution_message = COALESCE(?, resolution_message),
+                       resolution_image_path = COALESCE(?, resolution_image_path)
+                   WHERE complaint_id = ?;""",
+                (resolution_message, resolution_image_path, complaint_id),
+            )
+
     flash("Complaint updated.", "success")
     return redirect(url_for("admin.complaint_detail", complaint_id=complaint_id))
 
@@ -415,7 +480,7 @@ def _get_geo_complaints() -> list:
     """
     with db.db_cursor() as (conn, cur):
         cur.execute(
-            """SELECT complaint_id, title, category, address,
+            """SELECT complaint_id, title, category, address, status,
                       latitude, longitude, priority_level, priority_score
                FROM complaints
                WHERE latitude IS NOT NULL
@@ -511,3 +576,200 @@ def action_brief_generate():
         abort(403)
     flash("Action brief refreshed.", "success")
     return redirect(url_for("admin.action_brief"))
+
+
+# ── Interactive Complaint Map (Phase 4D) ─────────────────────────────────────
+
+@admin_bp.route("/map")
+def map_view():
+    """
+    Admin interactive complaint map.
+    Renders all complaints with real GPS coordinates using Leaflet and OpenStreetMap.
+    Markers are color-coded by status and priority, with rich popups linking to details.
+    """
+    geo_complaints = _get_geo_complaints()
+    detector = get_hotspot_detector()
+    hotspot_list = detector.detect([dict(c) for c in geo_complaints])
+
+    complaints_data = [
+        {
+            "complaint_id": c["complaint_id"],
+            "title": c["title"],
+            "category": c["category"],
+            "address": c["address"] or "",
+            "latitude": c["latitude"],
+            "longitude": c["longitude"],
+            "priority_level": c["priority_level"],
+            "priority_score": c["priority_score"],
+            "status": c["status"] if "status" in c.keys() else "Submitted",
+        }
+        for c in geo_complaints
+    ]
+
+    hotspots_data = [
+        {
+            "center_lat": h.center_lat,
+            "center_lon": h.center_lon,
+            "complaint_ids": h.complaint_ids,
+            "count": h.count,
+            "dominant_category": h.dominant_category,
+            "radius_km": h.radius_km,
+            "critical_count": h.critical_count,
+            "high_count": h.high_count,
+            "avg_priority_score": h.avg_priority_score,
+        }
+        for h in hotspot_list
+    ]
+
+    return render_template(
+        "admin/map.html",
+        complaints=geo_complaints,
+        complaints_json=complaints_data,
+        hotspots=hotspot_list,
+        hotspots_json=hotspots_data,
+        total_geo=len(geo_complaints),
+        categories=COMPLAINT_CATEGORIES,
+        statuses=COMPLAINT_STATUSES,
+    )
+
+
+# ── Analytics Dashboard (Phase 5.7 & 5.8) ────────────────────────────────────
+
+@admin_bp.route("/analytics")
+def analytics_view():
+    """
+    Advanced Admin Analytics Dashboard.
+    Provides resolution rates, turnaround time, trends, and predictive issue insights.
+    """
+    metrics = db.get_analytics_metrics()
+    all_complaints = _get_all_complaints_for_brief()
+
+    from ai.predictive_insights import get_insights_engine
+    insights = get_insights_engine().generate_insights(all_complaints)
+
+    geo_comps = _get_geo_complaints()
+    detector = get_hotspot_detector()
+    hotspot_list = detector.detect([dict(c) for c in geo_comps])
+
+    return render_template(
+        "admin/analytics.html",
+        metrics=metrics,
+        insights=insights,
+        hotspots=hotspot_list,
+    )
+
+
+# ── Reports & Data Export (Phase 5.10) ────────────────────────────────────────
+
+@admin_bp.route("/reports")
+def reports_view():
+    """
+    Admin Complaint Reports and Filtering.
+    Enables multi-criteria query and analysis across categories, statuses, and dates.
+    """
+    category = request.args.get("category", "").strip()
+    status = request.args.get("status", "").strip()
+    priority = request.args.get("priority", "").strip()
+    dept_raw = request.args.get("department_id", "").strip()
+    department_id = int(dept_raw) if dept_raw and dept_raw.isdigit() else None
+    start_date = request.args.get("start_date", "").strip()
+    end_date = request.args.get("end_date", "").strip()
+
+    complaints = db.get_report_complaints(
+        category=category,
+        status=status,
+        priority=priority,
+        department_id=department_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    all_departments = db.get_all_departments()
+
+    total_count = len(complaints)
+    resolved_count = sum(1 for c in complaints if c["status"] in ("Resolved", "Closed"))
+    critical_count = sum(1 for c in complaints if c["priority_level"] == "Critical")
+
+    return render_template(
+        "admin/reports.html",
+        complaints=complaints,
+        total_count=total_count,
+        resolved_count=resolved_count,
+        critical_count=critical_count,
+        categories=COMPLAINT_CATEGORIES,
+        statuses=COMPLAINT_STATUSES,
+        priority_levels=PRIORITY_LEVELS,
+        departments=all_departments,
+        active_category=category,
+        active_status=status,
+        active_priority=priority,
+        active_dept=department_id,
+        active_start=start_date,
+        active_end=end_date,
+    )
+
+
+@admin_bp.route("/reports/export.csv")
+def reports_export_csv():
+    """
+    Export filtered complaints dataset as CSV with formula-injection sanitization.
+    """
+    category = request.args.get("category", "").strip()
+    status = request.args.get("status", "").strip()
+    priority = request.args.get("priority", "").strip()
+    dept_raw = request.args.get("department_id", "").strip()
+    department_id = int(dept_raw) if dept_raw and dept_raw.isdigit() else None
+    start_date = request.args.get("start_date", "").strip()
+    end_date = request.args.get("end_date", "").strip()
+
+    complaints = db.get_report_complaints(
+        category=category,
+        status=status,
+        priority=priority,
+        department_id=department_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+
+    headers = [
+        "Complaint ID", "Title", "Category", "Status",
+        "Priority Level", "Priority Score", "Location / Address",
+        "Department", "Assigned Officer", "Submitted At", "Resolved At",
+        "Resolution Note",
+    ]
+    writer.writerow(headers)
+
+    def _sanitize_csv_cell(val) -> str:
+        s = str(val or "")
+        if s.startswith(("=", "+", "-", "@", "\t", "\r")):
+            return "'" + s
+        return s
+
+    for c in complaints:
+        writer.writerow([
+            _sanitize_csv_cell(c["complaint_id"]),
+            _sanitize_csv_cell(c["title"]),
+            _sanitize_csv_cell(c["category"]),
+            _sanitize_csv_cell(c["status"]),
+            _sanitize_csv_cell(c["priority_level"]),
+            c["priority_score"] if c["priority_score"] is not None else "",
+            _sanitize_csv_cell(c["address"]),
+            _sanitize_csv_cell(c["department_name"]),
+            _sanitize_csv_cell(c["officer_name"]),
+            _sanitize_csv_cell(c["created_at"]),
+            _sanitize_csv_cell(c["resolved_at"]),
+            _sanitize_csv_cell(c["resolution_message"]),
+        ])
+
+    csv_data = output.getvalue()
+    from datetime import datetime
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"urbanfix_complaints_{stamp}.csv"
+
+    return Response(
+        csv_data,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

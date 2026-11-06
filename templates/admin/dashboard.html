@@ -9,9 +9,12 @@
         <h1>Admin Dashboard</h1>
         <p>All civic complaints — search, filter, and track status.</p>
       </div>
-      <a href="{{ url_for('submit.complaint_form') }}" class="btn btn-primary">
-        + New Complaint
-      </a>
+      <div class="flex gap-1" style="flex-wrap:wrap;">
+        <a href="{{ url_for('admin.map_view') }}" class="btn btn-secondary">🗺 Map</a>
+        <a href="{{ url_for('admin.analytics_view') }}" class="btn btn-secondary">📈 Analytics</a>
+        <a href="{{ url_for('admin.reports_view') }}" class="btn btn-secondary">📋 Reports</a>
+        <a href="{{ url_for('submit.complaint_form') }}" class="btn btn-primary">+ New Complaint</a>
+      </div>
     </div>
   </div>
 
