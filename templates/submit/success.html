@@ -42,7 +42,7 @@
         </tr>
         <tr style="background:var(--surface);">
           <td style="padding:.4rem .75rem;color:var(--text-muted);font-weight:600;">Submitted</td>
-          <td style="padding:.4rem .75rem;">{{ complaint.created_at | format_datetime }}</td>
+          <td style="padding:.4rem .75rem;">{{ complaint.created_at }}</td>
         </tr>
         {% if complaint.address %}
         <tr>
