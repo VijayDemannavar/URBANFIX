@@ -128,13 +128,13 @@
       <thead>
         <tr>
           {% set sort_cols = [
-              ('complaint_id', 'Complaint ID', 0),
-              ('title',        'Title',        1),
-              ('category',     'Category',     2),
-              ('address',      'Location',     3),
-              ('status',       'Status',       4),
-              ('priority',     'Priority',     5),
-              ('submitted',    'Submitted',    6),
+              ['complaint_id', 'Complaint ID', 0],
+              ['title', 'Title', 1],
+              ['category', 'Category', 2],
+              ['address', 'Location', 3],
+              ['status', 'Status', 4],
+              ['priority', 'Priority', 5],
+              ['submitted', 'Submitted', 6]
           ] %}
           {% for col_key, col_label, col_idx in sort_cols %}
           {% set new_order = 'asc' if (active_sort == col_key and active_order == 'desc') else 'desc' %}

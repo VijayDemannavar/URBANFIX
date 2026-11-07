@@ -1,29 +1,18 @@
-# ==============================================================================
-# Netlify Configuration – URBANFIX (Civic Action Platform)
-# ==============================================================================
-# Architectural Notice:
-# URBANFIX is a full-stack Flask application that requires Python runtime execution,
-# SQLite database persistence, and local file storage for image uploads.
-#
-# Netlify is a static and serverless edge platform. Running a stateful Flask app
-# directly inside a basic Netlify static publish build (e.g. `pip install -r requirements.txt`)
-# does not keep a Python WSGI process running and cannot maintain a persistent database.
-#
-# Production Architecture Options:
-# 1. Native WSGI Deployment (Recommended):
-#    Deploy directly to Render, Railway, Fly.io, or VPS using the included Procfile:
-#    `web: gunicorn "app:create_app()" --workers 2 --bind 0.0.0.0:$PORT`
-#
-# 2. Netlify as Edge Reverse Proxy:
-#    If retaining the netlify.app domain, forward all traffic to your live backend service
-#    by uncommenting and updating the redirect rule below:
-#
-# [[redirects]]
-#   from = "/*"
-#   to = "https://your-flask-backend.onrender.com/:splat"
-#   status = 200
-#   force = true
-# ==============================================================================
-
 [build]
-  publish = "static"
+  publish = "public"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  included_files = ["templates/**"]
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/app"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "same-origin"

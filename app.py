@@ -79,7 +79,7 @@ def create_app(
     app = Flask(
         __name__,
         template_folder=os.path.join(BASE_DIR, "templates"),
-        static_folder=os.path.join(BASE_DIR, "static"),
+        static_folder=os.path.join(BASE_DIR, "public", "static"),
     )
     app.secret_key = SECRET_KEY
 

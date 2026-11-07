@@ -2,7 +2,7 @@
 {% block title %}{{ complaint.complaint_id }} – Complaint Detail{% endblock %}
 
 {% block extra_head %}
-  {% if complaint.latitude and complaint.longitude %}
+  {% if complaint.latitude is not none and complaint.longitude is not none %}
   <link rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
@@ -94,7 +94,7 @@
             <span>{{ complaint.address }}</span>
           </div>
           {% endif %}
-          {% if complaint.latitude and complaint.longitude %}
+          {% if complaint.latitude is not none and complaint.longitude is not none %}
           <div class="meta-item">
             <label>Latitude</label>
             <span>{{ complaint.latitude }}</span>
@@ -134,7 +134,7 @@
       </div>
 
       <!-- Location mini-map (Phase 4C: Leaflet) -->
-      {% if complaint.latitude and complaint.longitude %}
+      {% if complaint.latitude is not none and complaint.longitude is not none %}
       <div class="card" style="margin-bottom:1.25rem;">
         <h2 class="card-title">📍 Location</h2>
         <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:.6rem;">
@@ -455,7 +455,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-  {% if complaint.latitude and complaint.longitude %}
+  {% if complaint.latitude is not none and complaint.longitude is not none %}
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
           crossorigin="anonymous"></script>

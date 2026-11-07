@@ -100,11 +100,11 @@
 
   <!-- ── Flash messages ───────────────────────────────────────────── -->
   <div class="container" style="padding-top:.75rem;">
-    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% set messages = get_flashed_messages(with_categories=true) %}
       {% for category, message in messages %}
         <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
       {% endfor %}
-    {% endwith %}
+
   </div>
 
   <!-- ── Main content ─────────────────────────────────────────────── -->
