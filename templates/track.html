@@ -85,7 +85,7 @@
             </li>
           {% endif %}
           <li class="list-group-item" style="padding:.65rem 0;border-bottom:1px solid var(--border);">
-            <strong>Submitted On:</strong> {{ complaint.created_at[:16] }}
+            <strong>Submitted On:</strong> <time datetime="{{ complaint.created_at[:16] }}">{{ complaint.created_at | format_datetime }}</time>
           </li>
         </ul>
       </div>
@@ -100,7 +100,7 @@
       </div>
       {% if complaint.resolved_at %}
         <p style="margin:0 0 .75rem 0;font-size:.9rem;color:var(--text-muted);">
-          <strong>Resolution Date:</strong> {{ complaint.resolved_at[:16] }}
+          <strong>Resolution Date:</strong> <time datetime="{{ complaint.resolved_at[:16] }}">{{ complaint.resolved_at | format_datetime }}</time>
         </p>
       {% endif %}
 
@@ -143,7 +143,7 @@
                 {{ entry.new_status }}
               {% endif %}
             </div>
-            <div class="text-muted text-sm">{{ entry.changed_at }}</div>
+            <div class="text-muted text-sm">{{ entry.changed_at | format_datetime }}</div>
           </li>
         {% endfor %}
       </ul>
@@ -165,7 +165,7 @@
             <div>
               <div style="font-weight:600;font-size:.88rem;color:var(--text);">{{ notif.title }}</div>
               <div style="font-size:.82rem;color:var(--text-muted);">{{ notif.message }}</div>
-              <div class="text-muted text-sm" style="font-size:.75rem;margin-top:.2rem;">{{ notif.created_at[:16] }}</div>
+              <div class="text-muted text-sm" style="font-size:.75rem;margin-top:.2rem;">{{ notif.created_at | format_datetime }}</div>
             </div>
             {% if not notif.is_read %}
               <span class="badge badge-submitted" style="font-size:.7rem;">Unread</span>

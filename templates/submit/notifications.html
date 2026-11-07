@@ -63,7 +63,7 @@
               <p style="margin:.25rem 0 .4rem 0;font-size:.9rem;color:var(--text);line-height:1.4;">
                 {{ notif.message }}
               </p>
-              <span class="text-muted text-sm" style="font-size:.78rem;">{{ notif.created_at[:16] }}</span>
+              <span class="text-muted text-sm" style="font-size:.78rem;">{{ notif.created_at | format_datetime }}</span>
             </div>
 
             {% if not notif.is_read %}

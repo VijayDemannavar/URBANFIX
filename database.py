@@ -890,10 +890,20 @@ def get_report_complaints(
     if department_id:
         conditions.append("c.department_id = ?")
         params.append(department_id)
-    if start_date:
+
+    from dates import ist_date_range_to_utc
+    start_utc, end_utc = ist_date_range_to_utc(start_date, end_date)
+    if start_utc:
+        conditions.append("c.created_at >= ?")
+        params.append(start_utc)
+    elif start_date:
         conditions.append("c.created_at >= ?")
         params.append(start_date + " 00:00:00")
-    if end_date:
+
+    if end_utc:
+        conditions.append("c.created_at <= ?")
+        params.append(end_utc)
+    elif end_date:
         conditions.append("c.created_at <= ?")
         params.append(end_date + " 23:59:59")
 

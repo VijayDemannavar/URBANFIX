@@ -104,6 +104,18 @@ def create_app(
         from flask import session
         return session.get("csrf_token", "")
 
+    # ── Date & Time filters and globals (Asia/Kolkata / IST) ────────────
+    from dates import format_date, format_time, format_datetime, now_ist
+    app.jinja_env.filters["format_date"] = format_date
+    app.jinja_env.filters["format_time"] = format_time
+    app.jinja_env.filters["format_datetime"] = format_datetime
+
+    app.jinja_env.globals["format_date"] = format_date
+    app.jinja_env.globals["format_time"] = format_time
+    app.jinja_env.globals["format_datetime"] = format_datetime
+    app.jinja_env.globals["current_year"] = lambda: now_ist().year
+    app.jinja_env.globals["current_date"] = lambda: format_date(now_ist())
+
     # ── Startup validation (fail closed) ─────────────────────────────
     # Skip in TESTING mode so unit tests can construct minimal apps freely.
     if not app.config.get("TESTING"):

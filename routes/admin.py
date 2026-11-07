@@ -890,6 +890,8 @@ def reports_export_csv():
             return "'" + s
         return s
 
+    from dates import format_datetime, now_ist
+
     for c in complaints:
         writer.writerow([
             _sanitize_csv_cell(c["complaint_id"]),
@@ -901,14 +903,13 @@ def reports_export_csv():
             _sanitize_csv_cell(c["address"]),
             _sanitize_csv_cell(c["department_name"]),
             _sanitize_csv_cell(c["officer_name"]),
-            _sanitize_csv_cell(c["created_at"]),
-            _sanitize_csv_cell(c["resolved_at"]),
+            _sanitize_csv_cell(format_datetime(c["created_at"], default="")),
+            _sanitize_csv_cell(format_datetime(c["resolved_at"], default="") if c["resolved_at"] else ""),
             _sanitize_csv_cell(c["resolution_message"]),
         ])
 
     csv_data = output.getvalue()
-    from datetime import datetime
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stamp = now_ist().strftime("%Y%m%d_%H%M%S")
     filename = f"urbanfix_complaints_{stamp}.csv"
 
     return Response(

@@ -33,7 +33,7 @@
         </span>
         {% endif %}
         <span class="text-muted text-sm" style="font-size:.8rem;">
-          Generated: {{ brief.generated_at }}
+          Generated: {{ brief.generated_at | format_datetime }}
         </span>
       </div>
     </div>

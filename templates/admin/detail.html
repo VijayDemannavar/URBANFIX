@@ -36,7 +36,7 @@
         <p class="text-muted text-sm" style="margin-top:.25rem;">
           <span class="td-id">{{ complaint.complaint_id }}</span>
           &nbsp;&middot;&nbsp;
-          Submitted {{ complaint.created_at[:16] }}
+          Submitted {{ complaint.created_at | format_datetime }}
         </p>
       </div>
       <div class="flex gap-1" style="flex-wrap:wrap;">
@@ -118,16 +118,16 @@
           {% endif %}
           <div class="meta-item">
             <label>Submitted</label>
-            <span>{{ complaint.created_at[:16] }}</span>
+            <span>{{ complaint.created_at | format_datetime }}</span>
           </div>
           <div class="meta-item">
             <label>Last Updated</label>
-            <span>{{ complaint.updated_at[:16] }}</span>
+            <span>{{ complaint.updated_at | format_datetime }}</span>
           </div>
           {% if complaint.resolved_at %}
           <div class="meta-item">
             <label>Resolved At</label>
-            <span>{{ complaint.resolved_at[:16] }}</span>
+            <span>{{ complaint.resolved_at | format_datetime }}</span>
           </div>
           {% endif %}
         </div>
@@ -155,7 +155,7 @@
             <span class="history-dot" style="background:var(--accent-green);"></span>
             <div>
               <p style="font-size:.9rem;">{{ note.note }}</p>
-              <p class="text-muted text-sm">{{ note.created_at[:16] }}</p>
+              <p class="text-muted text-sm">{{ note.created_at | format_datetime }}</p>
             </div>
           </li>
           {% endfor %}
@@ -286,7 +286,7 @@
                 {% if h.action_note %}
                 <p style="font-size:.82rem;color:var(--text-muted);">{{ h.action_note }}</p>
                 {% endif %}
-                <p class="text-muted text-sm">{{ h.changed_at[:16] }}</p>
+                <p class="text-muted text-sm">{{ h.changed_at | format_datetime }}</p>
               </div>
             </li>
             {% endfor %}
